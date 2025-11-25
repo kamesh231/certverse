@@ -1,11 +1,19 @@
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import helmet from 'helmet';
 import { checkConnection } from './lib/supabase';
 import { getRandomQuestion, getQuestionCount } from './api/get-question';
 import { submitAnswer, getUserResponses, getUserStats } from './api/submit-answer';
+import { initSentry, Sentry } from './lib/sentry';
+import logger, { logInfo, logError } from './lib/logger';
+import { apiLimiter, questionLimiter, submitLimiter } from './middleware/rateLimiter';
+import { errorHandler, notFoundHandler, asyncHandler } from './middleware/errorHandler';
 
 dotenv.config();
+
+// Initialize Sentry first (before any other code)
+initSentry();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -14,6 +22,13 @@ const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
 // ============================================
 // MIDDLEWARE
 // ============================================
+
+// Sentry request handler (must be first)
+app.use(Sentry.Handlers.requestHandler());
+app.use(Sentry.Handlers.tracingHandler());
+
+// Security headers
+app.use(helmet());
 
 // CORS configuration
 app.use(cors({
@@ -30,9 +45,15 @@ app.use(cors({
 // Parse JSON bodies
 app.use(express.json());
 
+// Apply rate limiting to all routes
+app.use(apiLimiter);
+
 // Request logging middleware
 app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  logInfo(`${req.method} ${req.path}`, {
+    ip: req.ip,
+    userAgent: req.get('user-agent'),
+  });
   next();
 });
 
@@ -67,122 +88,88 @@ app.get('/', (req: Request, res: Response) => {
 });
 
 // Get random question for user
-app.get('/api/question', async (req: Request, res: Response) => {
-  try {
-    const userId = req.query.userId as string;
+app.get('/api/question', questionLimiter, asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.query.userId as string;
 
-    if (!userId) {
-      return res.status(400).json({
-        error: 'Missing userId parameter'
-      });
-    }
-
-    const question = await getRandomQuestion(userId);
-
-    if (!question) {
-      return res.status(404).json({
-        error: 'No questions available'
-      });
-    }
-
-    res.json(question);
-  } catch (error) {
-    console.error('Error in /api/question:', error);
-    res.status(500).json({
-      error: 'Internal server error'
+  if (!userId) {
+    return res.status(400).json({
+      error: 'Missing userId parameter'
     });
   }
-});
+
+  const question = await getRandomQuestion(userId);
+
+  if (!question) {
+    return res.status(404).json({
+      error: 'No questions available'
+    });
+  }
+
+  res.json(question);
+}));
 
 // Submit answer
-app.post('/api/submit', async (req: Request, res: Response) => {
-  try {
-    const { userId, questionId, selectedChoice } = req.body;
+app.post('/api/submit', submitLimiter, asyncHandler(async (req: Request, res: Response) => {
+  const { userId, questionId, selectedChoice } = req.body;
 
-    if (!userId || !questionId || !selectedChoice) {
-      return res.status(400).json({
-        error: 'Missing required fields: userId, questionId, selectedChoice'
-      });
-    }
-
-    const result = await submitAnswer({ userId, questionId, selectedChoice });
-
-    if (!result.success && result.error) {
-      return res.status(400).json(result);
-    }
-
-    res.json(result);
-  } catch (error) {
-    console.error('Error in /api/submit:', error);
-    res.status(500).json({
-      error: 'Internal server error'
+  if (!userId || !questionId || !selectedChoice) {
+    return res.status(400).json({
+      error: 'Missing required fields: userId, questionId, selectedChoice'
     });
   }
-});
+
+  const result = await submitAnswer({ userId, questionId, selectedChoice });
+
+  if (!result.success && result.error) {
+    return res.status(400).json(result);
+  }
+
+  res.json(result);
+}));
 
 // Get user statistics
-app.get('/api/stats', async (req: Request, res: Response) => {
-  try {
-    const userId = req.query.userId as string;
+app.get('/api/stats', asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.query.userId as string;
 
-    if (!userId) {
-      return res.status(400).json({
-        error: 'Missing userId parameter'
-      });
-    }
-
-    const stats = await getUserStats(userId);
-    res.json(stats);
-  } catch (error) {
-    console.error('Error in /api/stats:', error);
-    res.status(500).json({
-      error: 'Internal server error'
+  if (!userId) {
+    return res.status(400).json({
+      error: 'Missing userId parameter'
     });
   }
-});
+
+  const stats = await getUserStats(userId);
+  res.json(stats);
+}));
 
 // Get user answer history
-app.get('/api/history', async (req: Request, res: Response) => {
-  try {
-    const userId = req.query.userId as string;
-    const limit = parseInt(req.query.limit as string) || 10;
+app.get('/api/history', asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.query.userId as string;
+  const limit = parseInt(req.query.limit as string) || 10;
 
-    if (!userId) {
-      return res.status(400).json({
-        error: 'Missing userId parameter'
-      });
-    }
-
-    const history = await getUserResponses(userId, limit);
-    res.json(history);
-  } catch (error) {
-    console.error('Error in /api/history:', error);
-    res.status(500).json({
-      error: 'Internal server error'
+  if (!userId) {
+    return res.status(400).json({
+      error: 'Missing userId parameter'
     });
   }
-});
+
+  const history = await getUserResponses(userId, limit);
+  res.json(history);
+}));
 
 // Get question count (for admin/debugging)
-app.get('/api/question-count', async (req: Request, res: Response) => {
-  try {
-    const count = await getQuestionCount();
-    res.json({ count });
-  } catch (error) {
-    console.error('Error in /api/question-count:', error);
-    res.status(500).json({
-      error: 'Internal server error'
-    });
-  }
-});
+app.get('/api/question-count', asyncHandler(async (req: Request, res: Response) => {
+  const count = await getQuestionCount();
+  res.json({ count });
+}));
+
+// Sentry error handler (must be before other error handlers)
+app.use(Sentry.Handlers.errorHandler());
 
 // 404 handler
-app.use((req: Request, res: Response) => {
-  res.status(404).json({
-    error: 'Endpoint not found',
-    path: req.path
-  });
-});
+app.use(notFoundHandler);
+
+// Global error handler (must be last)
+app.use(errorHandler);
 
 // ============================================
 // SERVER START
@@ -191,32 +178,35 @@ app.use((req: Request, res: Response) => {
 async function startServer() {
   try {
     // Check database connection before starting
-    console.log('🔍 Checking database connection...');
+    logInfo('🔍 Checking database connection...');
     const isConnected = await checkConnection();
 
     if (!isConnected) {
-      console.error('❌ Failed to connect to Supabase. Check your credentials.');
+      logError('❌ Failed to connect to Supabase. Check your credentials.');
       process.exit(1);
     }
 
-    console.log('✅ Database connected successfully');
+    logInfo('✅ Database connected successfully');
 
     // Get question count
     const questionCount = await getQuestionCount();
-    console.log(`📝 Questions in database: ${questionCount}`);
+    logInfo(`📝 Questions in database: ${questionCount}`);
 
     if (questionCount === 0) {
-      console.warn('⚠️  No questions found. Run: npm run seed');
+      logInfo('⚠️  No questions found. Run: npm run seed');
     }
 
     // Start Express server
     app.listen(PORT, () => {
-      console.log(`🚀 Certverse API running on port ${PORT}`);
-      console.log(`🌐 Health check: http://localhost:${PORT}/health`);
-      console.log(`📚 API docs: http://localhost:${PORT}/`);
+      logInfo(`🚀 Certverse API running on port ${PORT}`);
+      logInfo(`🌐 Health check: http://localhost:${PORT}/health`);
+      logInfo(`📚 API docs: http://localhost:${PORT}/`);
+      logInfo(`🛡️  Security: Helmet, CORS, Rate Limiting enabled`);
+      logInfo(`📊 Monitoring: Sentry ${process.env.SENTRY_DSN ? 'enabled' : 'disabled'}`);
     });
   } catch (error) {
-    console.error('❌ Failed to start server:', error);
+    logError('❌ Failed to start server:', error as Error);
+    Sentry.captureException(error);
     process.exit(1);
   }
 }
