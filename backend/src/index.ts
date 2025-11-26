@@ -189,8 +189,8 @@ app.get('/api/question-count', asyncHandler(async (req: Request, res: Response) 
   res.json({ count });
 }));
 
-// Sentry error handler (v8 API - must be before other error handlers)
-Sentry.setupExpressErrorHandler(app);
+// Sentry temporarily disabled
+// TODO: Re-enable after Sentry v8 setup is complete
 
 // 404 handler
 app.use(notFoundHandler);
