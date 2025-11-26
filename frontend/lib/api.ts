@@ -31,6 +31,19 @@ export interface UserStats {
   accuracy: number;
 }
 
+export interface EnhancedUserStats extends UserStats {
+  currentStreak: number;
+  longestStreak: number;
+  questionsToday: number;
+}
+
+export interface UnlockStatus {
+  remaining: number;
+  total: number;
+  resetsAt: string;
+  streak: number;
+}
+
 export interface UserResponse {
   id: string;
   user_id: string;
@@ -188,5 +201,53 @@ export async function healthCheck(): Promise<{
   } catch (error) {
     console.error('Health check failed:', error);
     return { status: 'error', database: 'disconnected' };
+  }
+}
+
+/**
+ * Get remaining questions for today (Week 3 feature)
+ */
+export async function getRemainingQuestions(userId: string): Promise<UnlockStatus> {
+  try {
+    const response = await fetch(`${API_URL}/api/unlock/remaining?userId=${userId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to fetch unlock status');
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error('Error fetching unlock status:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get enhanced user statistics (includes streak - Week 3 feature)
+ */
+export async function getEnhancedUserStats(userId: string): Promise<EnhancedUserStats> {
+  try {
+    const response = await fetch(`${API_URL}/api/stats/enhanced?userId=${userId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to fetch enhanced stats');
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error('Error fetching enhanced stats:', error);
+    throw error;
   }
 }

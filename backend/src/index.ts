@@ -5,6 +5,7 @@ import helmet from 'helmet';
 import { checkConnection } from './lib/supabase';
 import { getRandomQuestion, getQuestionCount } from './api/get-question';
 import { submitAnswer, getUserResponses, getUserStats } from './api/submit-answer';
+import { getRemainingQuestions, getEnhancedUserStats } from './services/unlockService';
 import { initSentry, Sentry } from './lib/sentry';
 import logger, { logInfo, logError } from './lib/logger';
 import { apiLimiter, questionLimiter, submitLimiter } from './middleware/rateLimiter';
@@ -82,7 +83,9 @@ app.get('/', (req: Request, res: Response) => {
       question: 'GET /api/question?userId=xxx',
       submit: 'POST /api/submit',
       stats: 'GET /api/stats?userId=xxx',
-      history: 'GET /api/history?userId=xxx'
+      history: 'GET /api/history?userId=xxx',
+      unlockRemaining: 'GET /api/unlock/remaining?userId=xxx',
+      enhancedStats: 'GET /api/stats/enhanced?userId=xxx'
     }
   });
 });
@@ -154,6 +157,34 @@ app.get('/api/history', asyncHandler(async (req: Request, res: Response) => {
 
   const history = await getUserResponses(userId, limit);
   res.json(history);
+}));
+
+// Get remaining questions for today (Week 3 feature)
+app.get('/api/unlock/remaining', asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.query.userId as string;
+
+  if (!userId) {
+    return res.status(400).json({
+      error: 'Missing userId parameter'
+    });
+  }
+
+  const unlockStatus = await getRemainingQuestions(userId);
+  res.json(unlockStatus);
+}));
+
+// Get enhanced user statistics (includes streak)
+app.get('/api/stats/enhanced', asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.query.userId as string;
+
+  if (!userId) {
+    return res.status(400).json({
+      error: 'Missing userId parameter'
+    });
+  }
+
+  const enhancedStats = await getEnhancedUserStats(userId);
+  res.json(enhancedStats);
 }));
 
 // Get question count (for admin/debugging)

@@ -7,9 +7,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
-import { BookOpen, Clock, Target, TrendingUp, CheckCircle2, XCircle, ArrowRight, Loader2 } from "lucide-react"
+import { BookOpen, Clock, Target, TrendingUp, CheckCircle2, XCircle, ArrowRight, Loader2, Flame } from "lucide-react"
 import Link from "next/link"
-import { getUserStats, getUserHistory, UserStats, UserResponse } from "@/lib/api"
+import { getEnhancedUserStats, getUserHistory, EnhancedUserStats, UserResponse } from "@/lib/api"
 
 // CISA Domain mapping
 const domainNames: Record<number, string> = {
@@ -30,7 +30,7 @@ const domainFullNames: Record<number, string> = {
 
 export default function DashboardPage() {
   const { user } = useUser()
-  const [stats, setStats] = useState<UserStats | null>(null)
+  const [stats, setStats] = useState<EnhancedUserStats | null>(null)
   const [history, setHistory] = useState<UserResponse[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -44,7 +44,7 @@ export default function DashboardPage() {
 
       try {
         const [statsData, historyData] = await Promise.all([
-          getUserStats(user.id),
+          getEnhancedUserStats(user.id),
           getUserHistory(user.id, 5),
         ])
 
@@ -124,15 +124,15 @@ export default function DashboardPage() {
       bgColor: "bg-indigo-100 dark:bg-indigo-900/30",
     },
     {
-      title: "Correct Answers",
-      value: stats?.totalCorrect.toLocaleString() || "0",
-      icon: TrendingUp,
-      color: "text-emerald-600 dark:text-emerald-400",
-      bgColor: "bg-emerald-100 dark:bg-emerald-900/30",
+      title: "Current Streak",
+      value: stats?.currentStreak ? `${stats.currentStreak} ${stats.currentStreak === 1 ? 'day' : 'days'}` : "0 days",
+      icon: stats && stats.currentStreak >= 3 ? Flame : TrendingUp,
+      color: stats && stats.currentStreak >= 3 ? "text-orange-600 dark:text-orange-400" : "text-emerald-600 dark:text-emerald-400",
+      bgColor: stats && stats.currentStreak >= 3 ? "bg-orange-100 dark:bg-orange-900/30" : "bg-emerald-100 dark:bg-emerald-900/30",
     },
     {
-      title: "Study Time",
-      value: "Coming Soon",
+      title: "Questions Today",
+      value: stats?.questionsToday.toLocaleString() || "0",
       icon: Clock,
       color: "text-violet-600 dark:text-violet-400",
       bgColor: "bg-violet-100 dark:bg-violet-900/30",

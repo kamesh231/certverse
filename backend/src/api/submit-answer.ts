@@ -1,5 +1,6 @@
 import { supabase, Response } from '../lib/supabase';
 import { getQuestionById } from './get-question';
+import { updateStatsAfterAnswer } from '../services/unlockService';
 
 export interface SubmitAnswerRequest {
   userId: string;
@@ -110,7 +111,15 @@ export async function submitAnswer(
       };
     }
 
-    // Step 5: Return success response
+    // Step 5: Update user stats and streak (Week 3 feature)
+    try {
+      await updateStatsAfterAnswer(userId, isCorrect);
+    } catch (statsError) {
+      console.error('Error updating stats (non-critical):', statsError);
+      // Don't fail the submission if stats update fails
+    }
+
+    // Step 6: Return success response
     return {
       success: true,
       correct: isCorrect,

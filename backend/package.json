@@ -18,6 +18,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@clerk/clerk-sdk-node": "^5.1.6",
     "@sentry/node": "^10.27.0",
     "@sentry/profiling-node": "^10.27.0",
     "@supabase/supabase-js": "^2.39.3",

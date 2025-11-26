@@ -1,400 +1,760 @@
-# 🎯 Certverse - Next Steps for Production Readiness
+# Certverse MVP - Development Roadmap
 
-## ✅ What We Just Completed
+## Product Mission
+Build a focused, adaptive CISA practice app to **validate core engagement and willingness to pay** before scaling.
 
-### Monitoring & Troubleshooting Infrastructure
-
-I've successfully implemented comprehensive monitoring and troubleshooting infrastructure for your app:
-
-#### 1. **Backend Monitoring** (✅ Complete)
-- ✅ **Sentry** - Error tracking with performance profiling
-- ✅ **Winston Logger** - Structured logging with daily log rotation
-- ✅ **Rate Limiting** - Protection against DDoS and API abuse
-  - General API: 100 requests / 15 minutes
-  - Questions: 30 / minute
-  - Submissions: 20 / minute
-- ✅ **Helmet** - Security headers (XSS, CSP, etc.)
-- ✅ **Error Handler** - Global error handling with Sentry integration
-- ✅ **Async Wrapper** - All routes protected with proper error catching
-
-#### 2. **Frontend Monitoring** (⏳ 90% Complete)
-- ✅ Sentry configuration files created (client, server, edge)
-- ✅ Environment variable templates updated
-- ⏳ Sentry package installation in progress
-
-#### 3. **Documentation** (✅ Complete)
-- ✅ `MONITORING_SETUP.md` - Complete setup guide
-- ✅ `PRODUCTION_READINESS.md` - Production assessment
-- ✅ `NEXT_STEPS.md` - This file!
-
-#### 4. **Code Quality** (✅ Complete)
-- ✅ Committed and pushed to GitHub
-- ✅ Railway will auto-deploy backend changes
-- ✅ Vercel will auto-deploy frontend changes
+**Target:** 500 questions, daily unlock limits, diagnostic test, and preparedness dashboard.
 
 ---
 
-## 🚀 Immediate Action Items (Do These Now)
+## MVP Success Criteria
 
-### 1. Create Sentry Account (15 minutes)
+Track these metrics to validate the concept:
 
-**Steps:**
-1. Go to https://sentry.io/ and sign up (free tier is fine for now)
-2. Create 2 projects:
-   - **Project 1:** "Certverse Backend" (Platform: Node.js)
-   - **Project 2:** "Certverse Frontend" (Platform: Next.js)
-3. Copy the DSN from each project
+- **25%** diagnostic test completion rate
+- **10%** free → paid conversion rate
+- **50%** next-day return rate (paid users)
+- **<$40/month** Claude API costs in early stage
 
-**You'll get URLs like:**
+---
+
+## Feature Implementation Roadmap
+
+### Phase 1: Core Infrastructure (Week 1-2)
+
+#### 1.1 Database Schema Updates
+
+**Priority: Critical**
+
+Update database to support MVP features:
+
+```sql
+-- Add user preferences table
+CREATE TABLE user_preferences (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id TEXT NOT NULL UNIQUE,
+  exam_date DATE,
+  daily_study_time INTEGER, -- 10, 20, 30, or 60 minutes
+  goal_score INTEGER,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Add diagnostic results table
+CREATE TABLE diagnostic_results (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id TEXT NOT NULL,
+  question_id UUID REFERENCES questions(id),
+  selected_choice TEXT,
+  is_correct BOOLEAN,
+  user_reasoning TEXT,
+  reasoning_score DECIMAL(3,2), -- 0.00 to 1.00
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Add user stats table
+CREATE TABLE user_stats (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id TEXT NOT NULL UNIQUE,
+  total_questions_attempted INTEGER DEFAULT 0,
+  correct_answers INTEGER DEFAULT 0,
+  current_streak INTEGER DEFAULT 0,
+  longest_streak INTEGER DEFAULT 0,
+  last_activity_date DATE,
+  diagnostic_completed BOOLEAN DEFAULT FALSE,
+  domain_1_correct INTEGER DEFAULT 0,
+  domain_1_total INTEGER DEFAULT 0,
+  domain_2_correct INTEGER DEFAULT 0,
+  domain_2_total INTEGER DEFAULT 0,
+  domain_3_correct INTEGER DEFAULT 0,
+  domain_3_total INTEGER DEFAULT 0,
+  domain_4_correct INTEGER DEFAULT 0,
+  domain_4_total INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Add subscription tracking
+CREATE TABLE subscriptions (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id TEXT NOT NULL UNIQUE,
+  plan_type TEXT NOT NULL, -- 'free' or 'paid'
+  stripe_subscription_id TEXT,
+  status TEXT DEFAULT 'active',
+  started_at TIMESTAMPTZ DEFAULT NOW(),
+  expires_at TIMESTAMPTZ
+);
+
+-- Add anti-leak tracking
+CREATE TABLE question_accesses (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id TEXT NOT NULL,
+  question_id UUID REFERENCES questions(id),
+  ip_address TEXT,
+  accessed_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Update questions table
+ALTER TABLE questions
+  ADD COLUMN watermark_seed TEXT,
+  ADD COLUMN is_diagnostic BOOLEAN DEFAULT FALSE;
 ```
-Backend DSN:  https://abc123@o123456.ingest.sentry.io/123456
-Frontend DSN: https://xyz789@o123456.ingest.sentry.io/789012
+
+**Tasks:**
+- [ ] Create migration files for new tables
+- [ ] Add RLS policies for all tables
+- [ ] Seed 10 diagnostic questions (balanced across 4 domains)
+- [ ] Test data integrity
+
+---
+
+#### 1.2 Onboarding Flow
+
+**Priority: Critical**
+
+Build the user onboarding experience:
+
+**Frontend:**
+- [ ] Create `/onboarding` page
+- [ ] Multi-step form:
+  - Step 1: Exam date picker
+  - Step 2: Daily study time selector (10/20/30/60 mins)
+  - Step 3: Optional goal score
+- [ ] Store preferences in database
+- [ ] Redirect to diagnostic CTA after completion
+
+**Backend:**
+- [ ] `POST /api/onboarding` - Save user preferences
+- [ ] Validation: exam_date must be future, study_time in [10,20,30,60]
+
+---
+
+#### 1.3 Diagnostic Test (10 Questions)
+
+**Priority: Critical**
+
+**Frontend:**
+- [ ] Create `/diagnostic` page
+- [ ] Question flow UI (1 question at a time)
+- [ ] Optional reasoning input field
+- [ ] Show progress (1/10, 2/10, etc.)
+- [ ] Results page showing:
+  - Domain accuracy breakdown
+  - Weakest domain highlighted
+  - "Start your daily practice" CTA
+
+**Backend:**
+- [ ] `GET /api/diagnostic/questions` - Return 10 balanced questions
+- [ ] `POST /api/diagnostic/submit` - Store results
+- [ ] `POST /api/diagnostic/analyze` - Claude reasoning score
+  - Use basic Claude prompt: "Rate this reasoning 0-1"
+  - Store reasoning_score in diagnostic_results
+- [ ] Mark diagnostic_completed in user_stats
+
+**Claude Integration:**
+- [ ] Create reasoning prompt template
+- [ ] Implement caching to reduce costs
+- [ ] Add timeout/fallback if Claude is slow
+
+---
+
+### Phase 2: Daily Practice Engine (Week 3)
+
+#### 2.1 Daily Unlock Logic
+
+**Priority: Critical**
+
+Implement the daily question unlock algorithm:
+
+```typescript
+// backend/src/services/unlockService.ts
+function calculateDailyUnlock(userId: string): number {
+  const stats = getUserStats(userId);
+  const prefs = getUserPreferences(userId);
+
+  const totalQuestions = 500; // or query from DB
+  const attempted = stats.total_questions_attempted;
+  const remaining = totalQuestions - attempted;
+
+  const daysLeft = Math.max(1,
+    Math.floor((prefs.exam_date - new Date()) / (1000*60*60*24))
+  );
+
+  const base = Math.max(3, Math.min(20,
+    Math.ceil(remaining / daysLeft)
+  ));
+
+  const streakPenalty = Math.max(0, 3 - stats.current_streak);
+  const unlockedToday = Math.max(1, base - streakPenalty);
+
+  return unlockedToday;
+}
 ```
 
-### 2. Add Sentry DSN to Railway (Backend)
+**Tasks:**
+- [ ] Implement unlock calculation service
+- [ ] Add endpoint `GET /api/unlock/count` - Return unlocked count
+- [ ] Track daily unlock resets (midnight UTC)
+- [ ] Update user_stats with unlock data
 
-1. Go to **Railway dashboard** → Your backend project
-2. Click **"Variables"** tab
-3. Add these environment variables:
-   ```
-   SENTRY_DSN=<your_backend_sentry_dsn>
-   NODE_ENV=production
-   LOG_LEVEL=info
-   ```
-4. Railway will automatically redeploy
+---
 
-### 3. Add Sentry DSN to Vercel (Frontend)
+#### 2.2 Question Practice Flow
 
-1. Go to **Vercel dashboard** → Your certverse project
-2. Click **"Settings"** → **"Environment Variables"**
-3. Add:
-   ```
-   Variable: NEXT_PUBLIC_SENTRY_DSN
-   Value: <your_frontend_sentry_dsn>
-   Environment: Production, Preview, Development
-   ```
-4. Click **"Deployments"** → **"Redeploy"** latest deployment
+**Priority: Critical**
 
-### 4. Enable Vercel Analytics (5 minutes)
+**Frontend:**
+- [ ] Create `/practice` page
+- [ ] Display unlocked question count
+- [ ] Question UI:
+  - Show question text with watermark (user email in bottom-right)
+  - 4 multiple choice buttons
+  - Submit button
+- [ ] After submit:
+  - Show correct/incorrect
+  - Show explanation (paid only)
+  - Show domain stats update
+  - "Next question" button
+- [ ] Disable questions when daily limit reached
 
-1. In your Vercel project, click **"Analytics"** tab
-2. Click **"Enable Web Analytics"**
-3. That's it! No code changes needed.
+**Backend:**
+- [ ] `GET /api/practice/next` - Return next random question (not attempted today)
+- [ ] `POST /api/practice/submit` - Record answer, update stats
+- [ ] Apply watermark to question text:
+  ```typescript
+  function watermarkQuestion(text: string, email: string): string {
+    return text + '\n\n' + '​'.repeat(10) + email; // zero-width chars + email
+  }
+  ```
+- [ ] Update streak logic:
+  - Increment streak if user completes daily unlock
+  - Reset to 0 if user misses a day
 
-### 5. Set Up Uptime Monitoring (10 minutes)
+---
 
-**Option A: UptimeRobot (Recommended - Free)**
-1. Go to https://uptimerobot.com/ and sign up
-2. Click **"+ Add New Monitor"**
-3. Create 2 monitors:
+#### 2.3 Dashboard
 
-   **Monitor 1 (Frontend):**
-   - Monitor Type: HTTP(s)
-   - Friendly Name: Certverse Frontend
-   - URL: https://certverse.vercel.app/
-   - Monitoring Interval: Every 5 minutes
+**Priority: High**
 
-   **Monitor 2 (Backend):**
-   - Monitor Type: HTTP(s)
-   - Friendly Name: Certverse Backend API
-   - URL: https://certverse-production.up.railway.app/health
-   - Monitoring Interval: Every 5 minutes
+**Frontend:**
+- [ ] Create `/dashboard` page
+- [ ] Display metrics:
+  - Domain accuracy % (4 domains)
+  - Preparedness score (0-100)
+  - Current streak (with fire emoji if >3)
+  - Questions unlocked today
+  - Weakest domain
+  - Recent performance chart (last 7 days)
 
-4. Set alert contacts (email) for when site goes down
+**Backend:**
+- [ ] `GET /api/dashboard/stats` - Return all dashboard data
+- [ ] Implement preparedness formula:
+  ```typescript
+  function calculatePreparedness(stats: UserStats): number {
+    const overallAccuracy = stats.correct_answers / stats.total_questions_attempted;
+    const recentAccuracy = getRecentAccuracy(stats.user_id, 20); // last 20 Qs
+    const streakFactor = Math.min(stats.current_streak / 7, 1);
 
-### 6. Test Error Monitoring (5 minutes)
+    const score = (0.5 * overallAccuracy) +
+                  (0.3 * recentAccuracy) +
+                  (0.2 * streakFactor);
 
-After adding Sentry DSNs, test that errors are being captured:
+    return Math.round(Math.max(0, Math.min(100, score * 100)));
+  }
+  ```
+- [ ] Cache dashboard data (Redis or in-memory) to reduce DB load
 
-**Test Backend:**
+---
+
+### Phase 3: Monetization (Week 4)
+
+#### 3.1 Free vs Paid Plans
+
+**Free Plan Limits:**
+- 2 questions/day (hardcoded)
+- No explanations shown
+- No domain selection
+- No dashboard access
+- No diagnostic (or keep diagnostic free to push upgrade)
+
+**Paid Plan ($19-39/mo):**
+- Unlimited questions
+- Full explanations
+- Dashboard + domain insights
+- Reasoning scores
+- Daily unlock pacing
+- Future Coach/Mentor visibility (coming soon)
+
+**Tasks:**
+- [ ] Add plan enforcement middleware
+- [ ] Update frontend to hide/show features based on plan
+- [ ] Create upgrade CTA banners in free tier
+
+---
+
+#### 3.2 Stripe Integration
+
+**Priority: High**
+
+**Setup:**
+- [ ] Create Stripe account
+- [ ] Create product: "Certverse Premium - $29/mo"
+- [ ] Get API keys (test + live)
+- [ ] Add to environment variables:
+  ```
+  STRIPE_SECRET_KEY=sk_test_...
+  STRIPE_WEBHOOK_SECRET=whsec_...
+  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
+  ```
+
+**Backend:**
+- [ ] `POST /api/stripe/create-checkout` - Create Stripe checkout session
+- [ ] `POST /api/stripe/webhook` - Handle subscription events:
+  - `checkout.session.completed` → Activate subscription
+  - `customer.subscription.updated` → Update status
+  - `customer.subscription.deleted` → Downgrade to free
+- [ ] Update subscriptions table on events
+
+**Frontend:**
+- [ ] Create `/pricing` page
+- [ ] Implement checkout redirect
+- [ ] Handle success/cancel redirects
+- [ ] Show subscription status in settings
+
+---
+
+#### 3.3 "Coach" & "Mentor" Placeholders
+
+**Priority: Low**
+
+Display these features as "Coming Soon" - NO implementation required.
+
+**Frontend:**
+- [ ] Add "Coach" card on pricing page:
+  ```
+  Coach Plan - $39/mo (Coming Soon)
+  - AI Reasoning Tutor
+  - Adaptive domain correction
+  - Socratic Q&A
+  - Personalized study plan
+  ```
+- [ ] Add "Mentor" section:
+  ```
+  Human Coaching (Coming Soon)
+  - 1 free 30-min call with Coach plan
+  - Additional sessions at subsidized rates
+  - Expert CISA instructors
+  ```
+- [ ] Add visual badges/tags: "Launching Q2 2025"
+
+**Purpose:** Satisfy mentor agreement + increase perceived value without building features yet.
+
+---
+
+### Phase 4: Anti-Leak Measures (Week 4)
+
+#### 4.1 Lightweight Protection
+
+**Priority: Medium**
+
+**Tasks:**
+- [ ] Visual watermark: Add user email in light gray to bottom-right of question text (CSS)
+- [ ] Zero-width characters: Insert user_id encoded in zero-width Unicode into question text
+  ```typescript
+  function encodeWatermark(text: string, userId: string): string {
+    const zwc = userId.split('').map(c =>
+      String.fromCharCode(0x200B + c.charCodeAt(0) % 4)
+    ).join('');
+    return text.slice(0, 50) + zwc + text.slice(50);
+  }
+  ```
+- [ ] Log all question accesses in question_accesses table
+- [ ] No image rendering or steganography (out of scope)
+
+---
+
+### Phase 5: Security Hardening (Week 5)
+
+**Priority: Critical - Before Launch**
+
+#### 5.1 Re-enable Row-Level Security
+
+```sql
+-- responses table
+ALTER TABLE responses ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can insert own responses"
+ON responses FOR INSERT
+TO authenticated, anon
+WITH CHECK (true);
+
+CREATE POLICY "Users can read own responses"
+ON responses FOR SELECT
+TO authenticated, anon
+USING (user_id = current_setting('request.jwt.claims', true)::json->>'sub');
+
+-- Repeat for all tables
+```
+
+**Tasks:**
+- [ ] Enable RLS on all tables
+- [ ] Test with Clerk JWT claims
+- [ ] Verify users can't access other users' data
+
+---
+
+#### 5.2 Clerk JWT Verification
+
+**Priority: Critical**
+
+**Backend:**
+```typescript
+// backend/src/middleware/auth.ts
+import { ClerkExpressRequireAuth } from '@clerk/clerk-sdk-node';
+
+export const requireAuth = ClerkExpressRequireAuth({
+  onError: (error) => {
+    console.error('Auth error:', error);
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+});
+
+// Apply to protected routes
+app.get('/api/practice/next', requireAuth, asyncHandler(...));
+app.post('/api/practice/submit', requireAuth, asyncHandler(...));
+```
+
+**Tasks:**
+- [ ] Install @clerk/clerk-sdk-node
+- [ ] Add CLERK_SECRET_KEY to Railway env vars
+- [ ] Apply requireAuth to all protected endpoints
+- [ ] Test with invalid/expired tokens
+
+---
+
+#### 5.3 Input Validation
+
+**Priority: High**
+
 ```bash
-# This will create an error in Sentry
-curl https://certverse-production.up.railway.app/api/nonexistent
+npm install zod
 ```
 
-**Test Frontend:**
-Visit https://certverse.vercel.app/ and open browser console, then run:
-```javascript
-throw new Error("Test Sentry frontend error");
+```typescript
+// Example validation schema
+import { z } from 'zod';
+
+const submitAnswerSchema = z.object({
+  question_id: z.string().uuid(),
+  selected_choice: z.enum(['A', 'B', 'C', 'D']),
+  user_reasoning: z.string().max(500).optional()
+});
+
+// In route handler
+const validated = submitAnswerSchema.parse(req.body);
 ```
 
-Check your Sentry dashboard - you should see both errors appear!
+**Tasks:**
+- [ ] Add validation schemas for all endpoints
+- [ ] Return 400 with clear error messages on invalid input
+- [ ] Prevent SQL injection, XSS attacks
 
 ---
 
-## 📋 What You Need to Source Next
-
-As discussed, you're handling question sourcing over the next month. Here's a checklist:
+## Content Sourcing (Parallel Track)
 
 ### Question Database Requirements
 
-- [ ] **Minimum:** 500 questions across 5 CISA domains
-- [ ] **Recommended:** 1000+ questions
-- [ ] **Quality:** Each question should have:
-  - Clear question text
-  - 4 multiple choice options (A, B, C, D)
-  - Correct answer marked
-  - Detailed explanation
-  - Domain tagged (1-5)
-  - Difficulty level (easy/medium/hard)
+**Minimum:** 500 questions across 4 CISA domains
+**Recommended:** 1000+ questions
 
-### Question Sourcing Options
+**Quality checklist per question:**
+- [ ] Clear question text (no ambiguity)
+- [ ] 4 multiple choice options (A, B, C, D)
+- [ ] Correct answer marked
+- [ ] Detailed explanation (2-4 sentences)
+- [ ] Domain tagged (1-4)
+- [ ] Difficulty level (easy/medium/hard)
+
+### Sourcing Options
 
 **Option 1: Purchase Question Bank**
-- Pros: Fast, professionally written, legally cleared
+- Pros: Fast, professional, legally cleared
 - Cons: Expensive ($500-$2000)
-- Sources: CISA prep course providers, Udemy, etc.
+- Timeline: 1-2 weeks
 
 **Option 2: Create Your Own**
-- Pros: Free, full control, customized
-- Cons: Time-intensive, needs CISA expertise
-- Tip: Use official ISACA materials as reference
+- Pros: Free, full control
+- Cons: Time-intensive (80-100 hours for 500 questions)
+- Timeline: 4-6 weeks
 
 **Option 3: Partner with CISA Instructors**
-- Pros: Quality content, credibility boost
+- Pros: Quality + credibility
 - Cons: Revenue sharing, need to find partners
-- Tip: Reach out to CISA instructors on LinkedIn
+- Timeline: 2-4 weeks
 
-### Question Format (for seeding)
+### Seeding Format
 
-When you have questions, use this SQL format:
 ```sql
-INSERT INTO questions (question, choice_a, choice_b, choice_c, choice_d, correct_answer, explanation, domain, difficulty)
+INSERT INTO questions (
+  question,
+  choice_a,
+  choice_b,
+  choice_c,
+  choice_d,
+  correct_answer,
+  explanation,
+  domain,
+  difficulty,
+  is_diagnostic
+)
 VALUES
-('What is the PRIMARY role of an information systems auditor?',
+('What is the PRIMARY role of an IS auditor?',
  'Implement security controls',
  'Provide independent assurance',
  'Configure firewalls',
  'Train employees',
  'B',
- 'An information systems auditor primarily provides independent assurance on IT controls and processes.',
+ 'An IS auditor primarily provides independent assurance on IT controls and processes, rather than implementing controls themselves.',
  1,
- 'medium');
+ 'medium',
+ false);
 ```
 
 ---
 
-## 🔒 Security Hardening (Before Public Launch)
+## Monitoring & DevOps Setup
 
-These are **critical** before going public:
+### Immediate Setup (1-2 hours)
 
-### 1. Re-enable Row-Level Security (RLS)
+#### 1. Create Sentry Account
+1. Go to https://sentry.io/
+2. Create 2 projects:
+   - Backend (Node.js)
+   - Frontend (Next.js)
+3. Copy DSNs
 
-Currently, RLS is disabled on the `responses` table for development. Before launch:
+#### 2. Add Environment Variables
 
-```sql
--- Re-enable RLS
-ALTER TABLE responses ENABLE ROW LEVEL SECURITY;
-
--- Fix the INSERT policy
-CREATE POLICY "Users can insert their own responses"
-ON responses FOR INSERT
-TO authenticated, anon
-WITH CHECK (true);  -- Allow all inserts, Clerk handles auth
-
--- READ policy (users can only read their own)
-CREATE POLICY "Users can read own responses"
-ON responses FOR SELECT
-TO authenticated, anon
-USING (user_id = current_setting('request.jwt.claims', true)::json->>'sub');
+**Railway (Backend):**
+```
+SENTRY_DSN=https://...@sentry.io/...
+NODE_ENV=production
+LOG_LEVEL=info
+CLERK_SECRET_KEY=sk_...
+STRIPE_SECRET_KEY=sk_...
+STRIPE_WEBHOOK_SECRET=whsec_...
 ```
 
-**Priority:** 🔴 Critical - Must fix before public launch
-
-### 2. Verify Clerk Authentication on Backend
-
-Currently, the backend trusts the `userId` from the request. Add JWT verification:
-
-```typescript
-// backend/src/middleware/auth.ts
-import { ClerkExpressWithAuth } from '@clerk/clerk-sdk-node';
-
-export const requireAuth = ClerkExpressWithAuth({
-  // Your Clerk secret key from env
-});
-
-// Then use on protected routes:
-app.get('/api/question', requireAuth, questionLimiter, asyncHandler(...));
+**Vercel (Frontend):**
+```
+NEXT_PUBLIC_SENTRY_DSN=https://...@sentry.io/...
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_...
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_...
 ```
 
-**Priority:** 🔴 Critical
+#### 3. Uptime Monitoring
 
-### 3. Add Input Validation
-
-Install and use a validation library:
-```bash
-npm install zod
-```
-
-**Priority:** 🟡 High
+Use UptimeRobot (free):
+- Monitor frontend: https://certverse.vercel.app/
+- Monitor backend: https://certverse-production.up.railway.app/health
+- Alert email on downtime
 
 ---
 
-## 📊 Monitoring Dashboard Setup
+## MVP Launch Checklist
 
-Once Sentry is configured, set up your monitoring dashboard:
+### Pre-Launch (Week 6)
 
-### Daily Checks:
-- ✅ Sentry - Any new errors?
-- ✅ Vercel Analytics - Traffic trends
-- ✅ Railway Metrics - CPU/Memory usage
-- ✅ UptimeRobot - Uptime percentage
+**Testing:**
+- [ ] QA test all user flows (onboarding → diagnostic → practice → upgrade)
+- [ ] Test free plan limits (2 Q/day enforcement)
+- [ ] Test paid plan features (unlimited, explanations)
+- [ ] Load test (simulate 100 concurrent users)
+- [ ] Security audit (XSS, SQL injection, auth bypass attempts)
 
-### Weekly Checks:
-- ✅ Log file review (error-*.log)
-- ✅ Performance metrics (response times)
-- ✅ Rate limiting violations
-- ✅ User growth vs. error rate
+**Content:**
+- [ ] 500+ questions seeded
+- [ ] 10 diagnostic questions validated
+- [ ] All explanations reviewed for quality
 
-### Set Up Alerts (Sentry):
-1. Go to **Alerts** → **Create Alert Rule**
-2. Create:
-   - **Critical Error Alert** - Email immediately when new fatal error
-   - **High Error Rate** - Email when >10 errors in 1 hour
-   - **Performance Degradation** - Email when p95 response time >1s
+**Legal:**
+- [ ] Privacy Policy page
+- [ ] Terms of Service page
+- [ ] Cookie consent banner (if tracking EU users)
 
----
-
-## 🎯 Your 30-Day Roadmap
-
-Here's a suggested timeline based on your question sourcing plan:
-
-### Week 1-2: Question Sourcing (You)
-- [ ] Research and purchase/create question bank
-- [ ] Ensure 500+ quality questions ready
-- [ ] Format questions for database seeding
-
-### Week 3: Core Features (Development)
-- [ ] Seed database with questions
-- [ ] Implement domain-based filtering
-- [ ] Create test session management
-- [ ] Fix RLS policies
-- [ ] Add Clerk JWT verification
-
-### Week 4: Testing & Launch Prep
-- [ ] QA testing (all features)
-- [ ] Performance testing (load test with 100 concurrent users)
-- [ ] Security audit
-- [ ] Beta user testing (10-20 people)
-- [ ] Create Privacy Policy & Terms of Service
-
-### Week 5: Soft Launch
-- [ ] Launch to beta users
-- [ ] Monitor errors daily
-- [ ] Collect feedback
+**Beta Testing:**
+- [ ] Invite 10-20 beta users
+- [ ] Collect feedback on UX
+- [ ] Monitor error rates in Sentry
 - [ ] Fix critical bugs
 
-### Week 6: Public Launch
-- [ ] Announce on social media
-- [ ] Product Hunt launch
-- [ ] Monitor growth
-- [ ] Respond to user feedback
+### Launch Day
+
+**Pre-Flight:**
+- [ ] Verify all env vars in production
+- [ ] Test Stripe checkout in production mode
+- [ ] Enable uptime monitoring alerts
+- [ ] Set up daily Sentry digest emails
+
+**Go Live:**
+- [ ] Announce on LinkedIn/Twitter
+- [ ] Product Hunt launch (optional)
+- [ ] Share in CISA study groups/forums
+- [ ] Monitor dashboard hourly for first 24h
 
 ---
 
-## 💰 Optional: Payment Integration
+## Success Metrics Tracking
 
-If you want to monetize before launch:
+### Daily Monitoring (First 2 Weeks)
 
-### Stripe Setup (2-3 hours)
-```bash
-npm install stripe @stripe/stripe-js
-```
+Track in spreadsheet or analytics dashboard:
 
-**Recommended Pricing:**
-- **Free Tier:** 50 questions/month
-- **Premium:** $19.99/month - Unlimited questions, timed tests, analytics
+**Engagement:**
+- Sign-ups today
+- Diagnostic completions
+- Questions answered today
+- Active users (DAU)
 
-**Setup Steps:**
-1. Create Stripe account
-2. Get API keys
-3. Add to environment variables
-4. Implement checkout flow
-5. Create webhook handler for subscription events
+**Conversion:**
+- Free users
+- Paid conversions
+- Conversion rate %
 
----
+**Technical:**
+- Error count (Sentry)
+- API response time (p95)
+- Uptime %
 
-## 📈 Success Metrics
+**Claude Costs:**
+- API calls today
+- Total spend
+- Cost per user
 
-Track these KPIs after launch:
+### Weekly Review (Weeks 3-8)
 
-### User Metrics:
-- Sign-ups per day
-- Active users (DAU/MAU)
-- Questions answered per user
-- Average accuracy rate
-- Retention rate (7-day, 30-day)
+**Validate MVP Goals:**
+- ✅ 25% diagnostic completion? (target: 25%)
+- ✅ 10% free→paid conversion? (target: 10%)
+- ✅ 50% next-day return (paid)? (target: 50%)
+- ✅ Claude spend <$40/mo? (target: <$40)
 
-### Technical Metrics:
-- Error rate (target: <1%)
-- API response time (target: <500ms p95)
-- Uptime (target: >99.9%)
-- Page load time (target: <2s)
-
-### Business Metrics (if paid):
-- Conversion rate (free → paid)
-- Monthly Recurring Revenue (MRR)
-- Churn rate
-- Customer Acquisition Cost (CAC)
+**Iterate based on data:**
+- If diagnostic completion <25%: Simplify onboarding
+- If conversion <10%: Improve free→paid CTAs
+- If retention <50%: Improve daily unlock algorithm
+- If costs >$40: Reduce Claude calls, add caching
 
 ---
 
-## 🆘 Getting Help
+## Out of Scope (Do NOT Build Yet)
 
-If you run into issues:
+Explicitly excluded until Phase 2:
 
-1. **Check Logs:**
-   - Railway: Live logs in dashboard
-   - Sentry: Error dashboard
-   - Browser: DevTools console
+- ❌ Multi-turn AI tutor (full reasoning coach)
+- ❌ Adaptive difficulty engine
+- ❌ RAG pipelines for study materials
+- ❌ Mentor scheduling system
+- ❌ Mock exams / timed tests
+- ❌ Flashcards
+- ❌ User-uploaded study materials
+- ❌ Leaderboards
+- ❌ Notes / bookmarking
+- ❌ Advanced anti-leak (image steganography)
 
-2. **Documentation:**
-   - `MONITORING_SETUP.md` - Detailed monitoring guide
-   - `PRODUCTION_READINESS.md` - Feature checklist
-   - Sentry Docs: https://docs.sentry.io/
-
-3. **Community:**
-   - Next.js Discord
-   - Vercel Community
-   - Stack Overflow
+**Rule:** If it's not in the locked feature scope above, don't build it.
 
 ---
 
-## ✅ Quick Win Checklist (Next 24 Hours)
+## Development Timeline
 
-Do these now for immediate value:
+### Week 1-2: Infrastructure
+- Database schema
+- Onboarding flow
+- Diagnostic test
 
-- [ ] Create Sentry account (15 min)
-- [ ] Add Sentry DSN to Railway & Vercel (10 min)
+### Week 3: Daily Practice
+- Unlock algorithm
+- Question practice flow
+- Streak tracking
+
+### Week 4: Monetization
+- Stripe integration
+- Plan enforcement
+- Upgrade CTAs
+
+### Week 5: Polish & Security
+- RLS policies
+- Clerk JWT verification
+- Input validation
+- Anti-leak measures
+
+### Week 6: Launch Prep
+- Beta testing
+- Legal pages
+- Marketing materials
+- Production testing
+
+### Week 7: Soft Launch
+- Beta user launch
+- Monitor metrics
+- Fix critical bugs
+
+### Week 8: Public Launch
+- Product Hunt
+- Social media
+- CISA communities
+- Scale monitoring
+
+---
+
+## Quick Wins (Next 24 Hours)
+
+Get immediate value:
+
+- [ ] Set up Sentry (15 min)
+- [ ] Add Sentry DSNs to Railway/Vercel (10 min)
 - [ ] Enable Vercel Analytics (2 min)
-- [ ] Set up UptimeRobot monitors (10 min)
-- [ ] Test error tracking (5 min)
-- [ ] Review PRODUCTION_READINESS.md (10 min)
-- [ ] Start question sourcing research (30 min)
+- [ ] Set up UptimeRobot (10 min)
+- [ ] Create database migration plan (30 min)
+- [ ] Research question sourcing options (30 min)
 
-**Total Time: ~1.5 hours**
-
----
-
-## 🎉 You're 70% Ready for Production!
-
-What you have now:
-- ✅ Full monitoring infrastructure
-- ✅ Security headers and rate limiting
-- ✅ Error tracking ready (just needs DSN)
-- ✅ Deployed and running
-- ✅ Professional UI
-- ✅ Real-time user stats
-
-What you need:
-- Questions (your focus for next month)
-- Security hardening (Clerk JWT + RLS)
-- Legal pages (Privacy/Terms)
-
-You're in great shape! Focus on questions first, then circle back to security hardening.
+**Total: ~2 hours**
 
 ---
 
-**Questions or need help?** Check the documentation files or test the monitoring setup!
+## Getting Help
 
-**Last Updated:** 2025-01-15
+**Documentation:**
+- `MONITORING_SETUP.md` - Sentry & logging setup
+- `PRODUCTION_READINESS.md` - Infrastructure checklist
+- This file - Feature roadmap
+
+**Community:**
+- Next.js Discord
+- Clerk Community
+- Stripe Discord
+
+---
+
+## Current Status
+
+✅ **Completed:**
+- Backend monitoring (Sentry, Winston, rate limiting)
+- Frontend skeleton
+- Database schema (basic)
+- Clerk authentication
+- Railway + Vercel deployment
+
+⏳ **In Progress:**
+- Question database sourcing
+
+🎯 **Next Priority:**
+- Database schema updates
+- Onboarding flow
+- Diagnostic test
+
+---
+
+**Last Updated:** 2025-01-25
+**MVP Target Launch:** Week 8 (End of February 2025)
