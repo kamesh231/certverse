@@ -24,10 +24,6 @@ const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
 // MIDDLEWARE
 // ============================================
 
-// Sentry request handler (must be first)
-app.use(Sentry.Handlers.requestHandler());
-app.use(Sentry.Handlers.tracingHandler());
-
 // Security headers
 app.use(helmet());
 
@@ -193,8 +189,8 @@ app.get('/api/question-count', asyncHandler(async (req: Request, res: Response) 
   res.json({ count });
 }));
 
-// Sentry error handler (must be before other error handlers)
-app.use(Sentry.Handlers.errorHandler());
+// Sentry error handler (v8 API - must be before other error handlers)
+Sentry.setupExpressErrorHandler(app);
 
 // 404 handler
 app.use(notFoundHandler);

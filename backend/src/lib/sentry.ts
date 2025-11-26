@@ -1,5 +1,5 @@
 import * as Sentry from '@sentry/node'
-import { ProfilingIntegration } from '@sentry/profiling-node'
+import { nodeProfilingIntegration } from '@sentry/profiling-node'
 
 export const initSentry = () => {
   if (!process.env.SENTRY_DSN) {
@@ -17,7 +17,7 @@ export const initSentry = () => {
     // Profiling
     profilesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
     integrations: [
-      new ProfilingIntegration(),
+      nodeProfilingIntegration(),
     ],
 
     // Filter out sensitive data
