@@ -6,7 +6,13 @@ export const initSentry = () => {
 }
 
 // Dummy Sentry export to avoid breaking imports
+// Matches the real Sentry API signature
 export const Sentry = {
   setupExpressErrorHandler: () => {},
-  captureException: (error: any) => console.error('Error:', error)
+  captureException: (error: any, options?: any) => {
+    console.error('Error:', error)
+    if (options) {
+      console.error('Error context:', options)
+    }
+  }
 }
