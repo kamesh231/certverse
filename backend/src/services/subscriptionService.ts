@@ -183,8 +183,12 @@ export async function getSubscriptionByPolarId(
 export async function createCheckout(userId: string, userEmail: string): Promise<string> {
   // For now, return a placeholder URL
   // In production, this would call Polar API to create a checkout session
-  const polarOrg = process.env.POLAR_ORGANIZATION || 'certverse';
-  const checkoutUrl = `https://polar.sh/${polarOrg}/checkout?email=${encodeURIComponent(userEmail)}&client_reference_id=${userId}`;
+  const polarOrg = process.env.POLAR_ORGANIZATION || 'schedlynksandbox';
+  const productId = process.env.POLAR_PREMIUM_PRODUCT_ID;
+  
+  const checkoutUrl = productId
+    ? `https://polar.sh/${polarOrg}/checkout?product=${productId}&metadata[user_id]=${userId}&prefilled_email=${encodeURIComponent(userEmail)}`
+    : `https://polar.sh/${polarOrg}/checkout?metadata[user_id]=${userId}&prefilled_email=${encodeURIComponent(userEmail)}`;
 
   logger.info(`Created checkout URL for user ${userId}`);
   return checkoutUrl;
