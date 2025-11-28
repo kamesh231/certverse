@@ -196,7 +196,7 @@ app.get('/api/stats/enhanced', asyncHandler(async (req: Request, res: Response) 
     .gte('created_at', `${today}T00:00:00Z`)
     .lt('created_at', `${today}T23:59:59Z`);
 
-  const totalAnswered = stats?.total_questions || 0;
+  const totalAnswered = stats?.total_questions_attempted || 0;
   const totalCorrect = stats?.correct_answers || 0;
 
   res.json({
@@ -233,7 +233,7 @@ app.get('/api/stats', asyncHandler(async (req: Request, res: Response) => {
 
   res.json(stats || {
     user_id: userId,
-    total_questions: 0,
+    total_questions_attempted: 0,
     correct_answers: 0,
     current_streak: 0,
     longest_streak: 0
