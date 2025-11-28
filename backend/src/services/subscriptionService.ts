@@ -181,15 +181,25 @@ export async function getSubscriptionByPolarId(
 
 // Create checkout URL for Polar
 export async function createCheckout(userId: string, userEmail: string): Promise<string> {
-  // For now, return a placeholder URL
-  // In production, this would call Polar API to create a checkout session
-  const polarOrg = process.env.POLAR_ORGANIZATION || 'schedlynksandbox';
-  const productId = process.env.POLAR_PREMIUM_PRODUCT_ID;
+  const isSandbox = process.env.NODE_ENV !== 'production' || process.env.POLAR_SANDBOX === 'true';
+  const apiBase = isSandbox 
+    ? 'https://sandbox-api.polar.sh' 
+    : 'https://api.polar.sh';
   
-  const checkoutUrl = productId
-    ? `https://polar.sh/${polarOrg}/checkout?product=${productId}&metadata[user_id]=${userId}&prefilled_email=${encodeURIComponent(userEmail)}`
-    : `https://polar.sh/${polarOrg}/checkout?metadata[user_id]=${userId}&prefilled_email=${encodeURIComponent(userEmail)}`;
+  const checkoutLinkId = process.env.POLAR_CHECKOUT_LINK_ID || 'polar_cl_8zC0XSFEmnoN0ty4RWLuN7n65AVeQAwrQxgl03p2G9o';
+  
+  if (!checkoutLinkId) {
+    throw new Error('POLAR_CHECKOUT_LINK_ID environment variable is required');
+  }
 
-  logger.info(`Created checkout URL for user ${userId}`);
+  // Build checkout URL with metadata and email as query parameters
+  const params = new URLSearchParams({
+    'customer_email': userEmail,
+    'metadata[user_id]': userId,
+  });
+  
+  const checkoutUrl = `${apiBase}/v1/checkout-links/${checkoutLinkId}/redirect?${params.toString()}`;
+
+  logger.info(`Created checkout URL for user ${userId}: ${checkoutUrl}`);
   return checkoutUrl;
 }
