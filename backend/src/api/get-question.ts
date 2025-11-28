@@ -1,110 +1,46 @@
-import { supabase, Question } from '../lib/supabase';
+import { Request, Response } from 'express';
+import { supabase } from '../lib/supabase';
+import logger from '../lib/logger';
 
-/**
- * Fetches a random question that the user hasn't answered yet
- * If all questions are answered, returns a random question from the entire pool
- */
-export async function getRandomQuestion(userId: string): Promise<Question | null> {
+export async function getQuestion(req: Request, res: Response): Promise<void> {
   try {
-    // Step 1: Get all question IDs the user has already answered
-    const { data: answeredResponses, error: responseError } = await supabase
-      .from('responses')
-      .select('question_id')
-      .eq('user_id', userId);
+    const userId = req.query.userId as string;
 
-    if (responseError) {
-      console.error('Error fetching user responses:', responseError);
-      throw new Error('Failed to fetch user responses');
+    if (!userId) {
+      res.status(400).json({ error: 'userId is required' });
+      return;
     }
 
-    const answeredQuestionIds = answeredResponses?.map(r => r.question_id) || [];
-
-    // Step 2: Try to get a question the user hasn't answered yet
-    let query = supabase
-      .from('questions')
-      .select('*');
-
-    // If user has answered some questions, exclude them
-    if (answeredQuestionIds.length > 0) {
-      query = query.not('id', 'in', `(${answeredQuestionIds.join(',')})`);
-    }
-
-    const { data: unansweredQuestions, error: questionError } = await query;
-
-    if (questionError) {
-      console.error('Error fetching questions:', questionError);
-      throw new Error('Failed to fetch questions');
-    }
-
-    // Step 3: If there are unanswered questions, pick one randomly
-    if (unansweredQuestions && unansweredQuestions.length > 0) {
-      const randomIndex = Math.floor(Math.random() * unansweredQuestions.length);
-      return unansweredQuestions[randomIndex];
-    }
-
-    // Step 4: If all questions answered, get any random question
-    const { data: allQuestions, error: allQuestionsError } = await supabase
-      .from('questions')
-      .select('*');
-
-    if (allQuestionsError) {
-      console.error('Error fetching all questions:', allQuestionsError);
-      throw new Error('Failed to fetch questions');
-    }
-
-    if (allQuestions && allQuestions.length > 0) {
-      const randomIndex = Math.floor(Math.random() * allQuestions.length);
-      return allQuestions[randomIndex];
-    }
-
-    // No questions in database
-    return null;
-  } catch (error) {
-    console.error('Error in getRandomQuestion:', error);
-    throw error;
-  }
-}
-
-/**
- * Get question by ID (for testing/debugging)
- */
-export async function getQuestionById(questionId: string): Promise<Question | null> {
-  try {
-    const { data, error } = await supabase
+    // Get a random question
+    const { data: questions, error } = await supabase
       .from('questions')
       .select('*')
-      .eq('id', questionId)
-      .single();
+      .limit(50);
 
     if (error) {
-      console.error('Error fetching question by ID:', error);
-      return null;
+      logger.error('Error fetching questions:', error);
+      res.status(500).json({ error: 'Failed to fetch question' });
+      return;
     }
 
-    return data;
-  } catch (error) {
-    console.error('Error in getQuestionById:', error);
-    return null;
-  }
-}
-
-/**
- * Get total question count
- */
-export async function getQuestionCount(): Promise<number> {
-  try {
-    const { count, error } = await supabase
-      .from('questions')
-      .select('*', { count: 'exact', head: true });
-
-    if (error) {
-      console.error('Error counting questions:', error);
-      return 0;
+    if (!questions || questions.length === 0) {
+      res.status(404).json({ error: 'No questions available' });
+      return;
     }
 
-    return count || 0;
+    const randomQuestion = questions[Math.floor(Math.random() * questions.length)];
+
+    res.json({
+      id: randomQuestion.id,
+      domain: randomQuestion.domain,
+      q_text: randomQuestion.q_text,
+      choice_a: randomQuestion.choice_a,
+      choice_b: randomQuestion.choice_b,
+      choice_c: randomQuestion.choice_c,
+      choice_d: randomQuestion.choice_d,
+    });
   } catch (error) {
-    console.error('Error in getQuestionCount:', error);
-    return 0;
+    logger.error('Error in getQuestion:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 }

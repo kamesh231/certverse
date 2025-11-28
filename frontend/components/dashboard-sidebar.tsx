@@ -14,6 +14,7 @@ import {
   Award,
   Menu,
   X,
+  Sparkles,
 } from "lucide-react"
 import { Button } from "./ui/button"
 import { useState } from "react"
@@ -23,6 +24,7 @@ const navigation = [
   { name: "Study", href: "/study", icon: Target },
   { name: "Practice", href: "/question", icon: BookOpen },
   { name: "Results", href: "/results", icon: BarChart3 },
+  { name: "Pricing", href: "/pricing", icon: Sparkles },
   { name: "Settings", href: "/settings", icon: Settings },
 ]
 

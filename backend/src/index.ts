@@ -1,241 +1,260 @@
-import express, { Request, Response } from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import helmet from 'helmet';
-import { checkConnection } from './lib/supabase';
-import { getRandomQuestion, getQuestionCount } from './api/get-question';
-import { submitAnswer, getUserResponses, getUserStats } from './api/submit-answer';
-import { getRemainingQuestions, getEnhancedUserStats } from './services/unlockService';
-import { initSentry, Sentry } from './lib/sentry';
-import logger, { logInfo, logError } from './lib/logger';
-import { apiLimiter, questionLimiter, submitLimiter } from './middleware/rateLimiter';
-import { errorHandler, notFoundHandler, asyncHandler } from './middleware/errorHandler';
+import dotenv from 'dotenv';
+import { handlePolarWebhook } from './api/polar-webhook';
+import { getQuestion } from './api/get-question';
+import { submitAnswer } from './api/submit-answer';
+import { getUserSubscription, createCheckout } from './services/subscriptionService';
+import { rateLimiter } from './middleware/rateLimiter';
+import { errorHandler } from './middleware/errorHandler';
+import logger from './lib/logger';
+import './lib/sentry'; // Initialize Sentry
 
 dotenv.config();
 
-// Initialize Sentry first (before any other code)
-initSentry();
-
 const app = express();
 const PORT = process.env.PORT || 3001;
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
 
-// ============================================
-// MIDDLEWARE
-// ============================================
-
-// Security headers
+// Security middleware
 app.use(helmet());
-
-// CORS configuration
 app.use(cors({
-  origin: [
-    FRONTEND_URL,
-    'http://localhost:3000',
-    'http://localhost:3001',
-    /\.vercel\.app$/,  // Allow all Vercel preview deployments
-    /\.railway\.app$/  // Allow all Railway deployments
-  ],
+  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
   credentials: true
 }));
 
-// Parse JSON bodies
+// Rate limiting
+app.use(rateLimiter);
+
+// Polar webhook MUST be BEFORE express.json() to access raw body
+app.post('/api/webhooks/polar',
+  express.raw({ type: 'application/json' }),
+  async (req: Request, res: Response) => {
+    try {
+      // Convert raw body to JSON
+      req.body = JSON.parse(req.body.toString());
+      await handlePolarWebhook(req, res);
+    } catch (error) {
+      logger.error('Webhook error:', error);
+      res.status(500).json({ error: 'Webhook processing failed' });
+    }
+  }
+);
+
+// JSON body parser (after webhook route)
 app.use(express.json());
 
-// Apply rate limiting to all routes
-app.use(apiLimiter);
-
-// Request logging middleware
-app.use((req, res, next) => {
-  logInfo(`${req.method} ${req.path}`, {
-    ip: req.ip,
-    userAgent: req.get('user-agent'),
-  });
-  next();
+// Health check
+app.get('/health', (req: Request, res: Response) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// ============================================
-// ROUTES
-// ============================================
-
-// Health check endpoint
-app.get('/health', async (req: Request, res: Response) => {
-  const isConnected = await checkConnection();
-  res.json({
-    status: 'ok',
-    timestamp: new Date().toISOString(),
-    database: isConnected ? 'connected' : 'disconnected'
-  });
-});
-
-// Get API info
-app.get('/', (req: Request, res: Response) => {
-  res.json({
-    name: 'Certverse API',
-    version: '1.0.0',
-    description: 'Backend API for CISA exam preparation platform',
-    endpoints: {
-      health: 'GET /health',
-      question: 'GET /api/question?userId=xxx',
-      submit: 'POST /api/submit',
-      stats: 'GET /api/stats?userId=xxx',
-      history: 'GET /api/history?userId=xxx',
-      unlockRemaining: 'GET /api/unlock/remaining?userId=xxx',
-      enhancedStats: 'GET /api/stats/enhanced?userId=xxx'
-    }
-  });
-});
-
-// Get random question for user
-app.get('/api/question', questionLimiter, asyncHandler(async (req: Request, res: Response) => {
+// Subscription endpoints
+app.get('/api/subscription', asyncHandler(async (req: Request, res: Response) => {
   const userId = req.query.userId as string;
 
   if (!userId) {
-    return res.status(400).json({
-      error: 'Missing userId parameter'
-    });
+    res.status(400).json({ error: 'userId is required' });
+    return;
   }
 
-  const question = await getRandomQuestion(userId);
-
-  if (!question) {
-    return res.status(404).json({
-      error: 'No questions available'
-    });
-  }
-
-  res.json(question);
+  const subscription = await getUserSubscription(userId);
+  res.json(subscription);
 }));
 
-// Submit answer
-app.post('/api/submit', submitLimiter, asyncHandler(async (req: Request, res: Response) => {
-  const { userId, questionId, selectedChoice } = req.body;
+app.post('/api/checkout/create', asyncHandler(async (req: Request, res: Response) => {
+  const { userId, userEmail } = req.body;
 
-  if (!userId || !questionId || !selectedChoice) {
-    return res.status(400).json({
-      error: 'Missing required fields: userId, questionId, selectedChoice'
-    });
+  if (!userId || !userEmail) {
+    res.status(400).json({ error: 'userId and userEmail are required' });
+    return;
   }
 
-  const result = await submitAnswer({ userId, questionId, selectedChoice });
-
-  if (!result.success && result.error) {
-    return res.status(400).json(result);
-  }
-
-  res.json(result);
+  const checkoutUrl = await createCheckout(userId, userEmail);
+  res.json({ url: checkoutUrl }); // Frontend expects 'url' field
 }));
 
-// Get user statistics
-app.get('/api/stats', asyncHandler(async (req: Request, res: Response) => {
-  const userId = req.query.userId as string;
-
-  if (!userId) {
-    return res.status(400).json({
-      error: 'Missing userId parameter'
-    });
-  }
-
-  const stats = await getUserStats(userId);
-  res.json(stats);
+// Question endpoints
+app.get('/api/question', asyncHandler(async (req: Request, res: Response) => {
+  await getQuestion(req, res);
 }));
 
-// Get user answer history
+app.post('/api/submit-answer', asyncHandler(async (req: Request, res: Response) => {
+  await submitAnswer(req, res);
+}));
+
+// Alias for submit-answer (frontend uses /api/submit)
+app.post('/api/submit', asyncHandler(async (req: Request, res: Response) => {
+  await submitAnswer(req, res);
+}));
+
+// User history endpoint
 app.get('/api/history', asyncHandler(async (req: Request, res: Response) => {
   const userId = req.query.userId as string;
   const limit = parseInt(req.query.limit as string) || 10;
 
   if (!userId) {
-    return res.status(400).json({
-      error: 'Missing userId parameter'
-    });
+    res.status(400).json({ error: 'userId is required' });
+    return;
   }
 
-  const history = await getUserResponses(userId, limit);
-  res.json(history);
+  const { supabase } = await import('./lib/supabase');
+
+  const { data, error } = await supabase
+    .from('responses')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    throw error;
+  }
+
+  res.json(data || []);
 }));
 
-// Get remaining questions for today (Week 3 feature)
+// Question count endpoint
+app.get('/api/question-count', asyncHandler(async (req: Request, res: Response) => {
+  const { supabase } = await import('./lib/supabase');
+
+  const { count, error } = await supabase
+    .from('questions')
+    .select('*', { count: 'exact', head: true });
+
+  if (error) {
+    throw error;
+  }
+
+  res.json({ count: count || 0 });
+}));
+
+// Unlock status endpoint
 app.get('/api/unlock/remaining', asyncHandler(async (req: Request, res: Response) => {
   const userId = req.query.userId as string;
 
   if (!userId) {
-    return res.status(400).json({
-      error: 'Missing userId parameter'
-    });
+    res.status(400).json({ error: 'userId is required' });
+    return;
   }
 
-  const unlockStatus = await getRemainingQuestions(userId);
-  res.json(unlockStatus);
+  const { getRemainingQuestions } = await import('./services/unlockService');
+  const { getUserSubscription } = await import('./services/subscriptionService');
+
+  const remaining = await getRemainingQuestions(userId);
+  const subscription = await getUserSubscription(userId);
+  const total = subscription.plan_type === 'paid' && subscription.status === 'active' ? 999 : 2;
+
+  // Get streak from user_stats
+  const { supabase } = await import('./lib/supabase');
+  const { data: stats } = await supabase
+    .from('user_stats')
+    .select('current_streak')
+    .eq('user_id', userId)
+    .single();
+
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(0, 0, 0, 0);
+
+  res.json({
+    remaining,
+    total,
+    resetsAt: tomorrow.toISOString(),
+    streak: stats?.current_streak || 0
+  });
 }));
 
-// Get enhanced user statistics (includes streak)
+// Enhanced stats endpoint
 app.get('/api/stats/enhanced', asyncHandler(async (req: Request, res: Response) => {
   const userId = req.query.userId as string;
 
   if (!userId) {
-    return res.status(400).json({
-      error: 'Missing userId parameter'
-    });
+    res.status(400).json({ error: 'userId is required' });
+    return;
   }
 
-  const enhancedStats = await getEnhancedUserStats(userId);
-  res.json(enhancedStats);
+  const { supabase } = await import('./lib/supabase');
+
+  // Get user stats
+  const { data: stats, error: statsError } = await supabase
+    .from('user_stats')
+    .select('*')
+    .eq('user_id', userId)
+    .single();
+
+  if (statsError && statsError.code !== 'PGRST116') {
+    throw statsError;
+  }
+
+  // Get today's question count
+  const today = new Date().toISOString().split('T')[0];
+  const { data: todayResponses } = await supabase
+    .from('responses')
+    .select('id')
+    .eq('user_id', userId)
+    .gte('created_at', `${today}T00:00:00Z`)
+    .lt('created_at', `${today}T23:59:59Z`);
+
+  const totalAnswered = stats?.total_questions || 0;
+  const totalCorrect = stats?.correct_answers || 0;
+
+  res.json({
+    totalAnswered,
+    totalCorrect,
+    accuracy: totalAnswered > 0 ? (totalCorrect / totalAnswered) * 100 : 0,
+    currentStreak: stats?.current_streak || 0,
+    longestStreak: stats?.longest_streak || 0,
+    questionsToday: todayResponses?.length || 0
+  });
 }));
 
-// Get question count (for admin/debugging)
-app.get('/api/question-count', asyncHandler(async (req: Request, res: Response) => {
-  const count = await getQuestionCount();
-  res.json({ count });
+// User stats endpoint
+app.get('/api/stats', asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.query.userId as string;
+
+  if (!userId) {
+    res.status(400).json({ error: 'userId is required' });
+    return;
+  }
+
+  const { supabase } = await import('./lib/supabase');
+
+  // Get user stats
+  const { data: stats, error: statsError } = await supabase
+    .from('user_stats')
+    .select('*')
+    .eq('user_id', userId)
+    .single();
+
+  if (statsError && statsError.code !== 'PGRST116') {
+    throw statsError;
+  }
+
+  res.json(stats || {
+    user_id: userId,
+    total_questions: 0,
+    correct_answers: 0,
+    current_streak: 0,
+    longest_streak: 0
+  });
 }));
 
-// Sentry temporarily disabled
-// TODO: Re-enable after Sentry v8 setup is complete
-
-// 404 handler
-app.use(notFoundHandler);
-
-// Global error handler (must be last)
+// Error handling
 app.use(errorHandler);
 
-// ============================================
-// SERVER START
-// ============================================
-
-async function startServer() {
-  try {
-    // Check database connection before starting
-    logInfo('🔍 Checking database connection...');
-    const isConnected = await checkConnection();
-
-    if (!isConnected) {
-      logError('❌ Failed to connect to Supabase. Check your credentials.');
-      process.exit(1);
-    }
-
-    logInfo('✅ Database connected successfully');
-
-    // Get question count
-    const questionCount = await getQuestionCount();
-    logInfo(`📝 Questions in database: ${questionCount}`);
-
-    if (questionCount === 0) {
-      logInfo('⚠️  No questions found. Run: npm run seed');
-    }
-
-    // Start Express server
-    app.listen(PORT, () => {
-      logInfo(`🚀 Certverse API running on port ${PORT}`);
-      logInfo(`🌐 Health check: http://localhost:${PORT}/health`);
-      logInfo(`📚 API docs: http://localhost:${PORT}/`);
-      logInfo(`🛡️  Security: Helmet, CORS, Rate Limiting enabled`);
-      logInfo(`📊 Monitoring: Sentry ${process.env.SENTRY_DSN ? 'enabled' : 'disabled'}`);
-    });
-  } catch (error) {
-    logError('❌ Failed to start server:', error as Error);
-    Sentry.captureException(error);
-    process.exit(1);
-  }
+// Async handler wrapper
+function asyncHandler(fn: (req: Request, res: Response, next: NextFunction) => Promise<void>) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    Promise.resolve(fn(req, res, next)).catch(next);
+  };
 }
 
-startServer();
+// Start server
+app.listen(PORT, () => {
+  logger.info(`=� Server running on port ${PORT}`);
+  logger.info(`=� Environment: ${process.env.NODE_ENV}`);
+  logger.info(`= Frontend URL: ${process.env.FRONTEND_URL}`);
+});
+
+export default app;

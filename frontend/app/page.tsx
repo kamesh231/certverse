@@ -1,7 +1,8 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Brain, MessageSquare, TrendingUp, ArrowRight } from "lucide-react"
+import { Card, CardDescription, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Brain, MessageSquare, TrendingUp, ArrowRight, Check, Sparkles } from "lucide-react"
 import { Navbar } from "@/components/navbar"
 
 export default function Home() {
@@ -119,6 +120,139 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Pricing Section */}
+      <section id="pricing" className="bg-muted/50 px-6 py-24 sm:px-12 lg:px-24">
+        <div className="mx-auto max-w-6xl">
+          <div className="mb-16 text-center">
+            <Badge className="mb-4" variant="secondary">Pricing</Badge>
+            <h2 className="mb-4 text-balance text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl">
+              Simple, transparent pricing
+            </h2>
+            <p className="mx-auto max-w-2xl text-balance text-lg text-muted-foreground">
+              Start free, upgrade when you're ready. No hidden fees.
+            </p>
+          </div>
+
+          <div className="grid gap-8 md:grid-cols-3">
+            {/* Free Plan */}
+            <Card className="animate-fade-in-up">
+              <CardHeader>
+                <CardTitle className="text-2xl">Free</CardTitle>
+                <CardDescription>Perfect for getting started</CardDescription>
+                <div className="mt-4">
+                  <span className="text-4xl font-bold">$0</span>
+                  <span className="text-muted-foreground ml-2">forever</span>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <ul className="space-y-3">
+                  <li className="flex items-start gap-2">
+                    <Check className="h-5 w-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
+                    <span className="text-sm">2 questions per day</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="h-5 w-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
+                    <span className="text-sm">Basic stats tracking</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="h-5 w-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
+                    <span className="text-sm">Streak tracking</span>
+                  </li>
+                </ul>
+              </CardContent>
+              <CardFooter>
+                <Button className="w-full" variant="outline" asChild>
+                  <Link href="/dashboard">Get Started Free</Link>
+                </Button>
+              </CardFooter>
+            </Card>
+
+            {/* Premium Plan */}
+            <Card className="animate-fade-in-up border-primary shadow-lg scale-105 [animation-delay:100ms]">
+              <div className="absolute -top-4 left-1/2 -translate-x-1/2">
+                <Badge className="bg-primary text-primary-foreground">
+                  <Sparkles className="h-3 w-3 mr-1" />
+                  Most Popular
+                </Badge>
+              </div>
+              <CardHeader className="pt-8">
+                <CardTitle className="text-2xl">Premium</CardTitle>
+                <CardDescription>Everything you need to pass</CardDescription>
+                <div className="mt-4">
+                  <span className="text-4xl font-bold">$29</span>
+                  <span className="text-muted-foreground ml-2">per month</span>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <ul className="space-y-3">
+                  <li className="flex items-start gap-2">
+                    <Check className="h-5 w-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
+                    <span className="text-sm">Unlimited questions</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="h-5 w-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
+                    <span className="text-sm">Detailed explanations</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="h-5 w-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
+                    <span className="text-sm">Advanced analytics</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="h-5 w-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
+                    <span className="text-sm">Priority support</span>
+                  </li>
+                </ul>
+              </CardContent>
+              <CardFooter>
+                <Button className="w-full" asChild>
+                  <Link href="/pricing">Upgrade to Premium</Link>
+                </Button>
+              </CardFooter>
+            </Card>
+
+            {/* Coach Plan */}
+            <Card className="animate-fade-in-up [animation-delay:200ms]">
+              <div className="absolute -top-4 left-1/2 -translate-x-1/2">
+                <Badge variant="secondary">Coming Q2 2025</Badge>
+              </div>
+              <CardHeader className="pt-8">
+                <CardTitle className="text-2xl">Coach</CardTitle>
+                <CardDescription>AI-powered coaching</CardDescription>
+                <div className="mt-4">
+                  <span className="text-4xl font-bold">$39</span>
+                  <span className="text-muted-foreground ml-2">per month</span>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <ul className="space-y-3">
+                  <li className="flex items-start gap-2">
+                    <Check className="h-5 w-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
+                    <span className="text-sm">Everything in Premium</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="h-5 w-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
+                    <span className="text-sm">AI Reasoning Tutor</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="h-5 w-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
+                    <span className="text-sm">Personalized study plan</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="h-5 w-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
+                    <span className="text-sm">1 free CISA mentor call</span>
+                  </li>
+                </ul>
+              </CardContent>
+              <CardFooter>
+                <Button className="w-full" variant="secondary" disabled>
+                  Join Waitlist
+                </Button>
+              </CardFooter>
+            </Card>
+          </div>
+        </div>
+      </section>
+
       {/* CTA Section */}
       <section className="bg-gradient-to-br from-blue-600 via-indigo-700 to-blue-800 px-6 py-24 text-white sm:px-12 lg:px-24">
         <div className="mx-auto max-w-3xl text-center">
@@ -155,7 +289,7 @@ export default function Home() {
                   </Link>
                 </li>
                 <li>
-                  <Link href="#" className="hover:text-foreground">
+                  <Link href="#pricing" className="hover:text-foreground">
                     Pricing
                   </Link>
                 </li>

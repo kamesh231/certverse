@@ -12,7 +12,7 @@ import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
-import { getUserStats } from "@/lib/api"
+import { getUserStats, getUserSubscription, createCheckoutUrl, type Subscription } from "@/lib/api"
 import {
   User,
   Settings,
@@ -40,23 +40,49 @@ export default function SettingsPage() {
   const [studyReminders, setStudyReminders] = useState(true)
   const [stats, setStats] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [subscription, setSubscription] = useState<Subscription | null>(null)
+  const [isUpgrading, setIsUpgrading] = useState(false)
 
   useEffect(() => {
-    async function loadStats() {
+    async function loadData() {
       if (!user?.id) return
 
       try {
-        const statsData = await getUserStats(user.id)
+        const [statsData, subscriptionData] = await Promise.all([
+          getUserStats(user.id),
+          getUserSubscription(user.id)
+        ])
         setStats(statsData)
+        setSubscription(subscriptionData)
       } catch (error) {
-        console.error("Failed to load stats:", error)
+        console.error("Failed to load data:", error)
       } finally {
         setIsLoading(false)
       }
     }
 
-    loadStats()
+    loadData()
   }, [user?.id])
+
+  const handleUpgrade = async () => {
+    if (!user?.id || !user?.primaryEmailAddress?.emailAddress) {
+      alert('Please sign in first')
+      return
+    }
+
+    setIsUpgrading(true)
+    try {
+      const checkoutUrl = await createCheckoutUrl(
+        user.id,
+        user.primaryEmailAddress.emailAddress
+      )
+      window.location.href = checkoutUrl
+    } catch (error) {
+      console.error('Checkout error:', error)
+      alert('Failed to start checkout. Please try again.')
+      setIsUpgrading(false)
+    }
+  }
 
   const achievements = [
     {
@@ -415,85 +441,154 @@ export default function SettingsPage() {
                 <CardDescription>Manage your subscription and billing</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="flex items-start justify-between">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-2xl font-bold">Free Plan</h3>
-                      <Badge className="bg-gradient-to-r from-blue-600 to-indigo-600">
-                        Active
-                      </Badge>
+                {isLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-2xl font-bold">
+                            {subscription?.plan_type === 'paid' ? 'Premium Plan' : 'Free Plan'}
+                          </h3>
+                          <Badge className={subscription?.is_paid ? "bg-gradient-to-r from-blue-600 to-indigo-600" : ""}>
+                            {subscription?.status === 'active' ? 'Active' : subscription?.status}
+                          </Badge>
+                        </div>
+                        <p className="text-muted-foreground">
+                          {subscription?.plan_type === 'paid' ? '$29.00 / month' : '$0.00 / month'}
+                        </p>
+                        {subscription?.is_paid && subscription?.current_period_end && (
+                          <p className="text-sm text-muted-foreground">
+                            Renews on {new Date(subscription.current_period_end).toLocaleDateString()}
+                          </p>
+                        )}
+                      </div>
+                      {!subscription?.is_paid && (
+                        <Button onClick={handleUpgrade} disabled={isUpgrading}>
+                          {isUpgrading ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Loading...
+                            </>
+                          ) : (
+                            'Upgrade to Premium'
+                          )}
+                        </Button>
+                      )}
                     </div>
-                    <p className="text-muted-foreground">$0.00 / month</p>
-                  </div>
-                  <Button variant="outline">Upgrade to Pro</Button>
-                </div>
 
-                <div className="mt-6 space-y-3 rounded-lg border bg-muted/50 p-4">
-                  <h4 className="font-semibold">Free Plan Features:</h4>
-                  <ul className="space-y-2 text-sm">
-                    <li className="flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-green-600" />
-                      Unlimited practice questions
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-green-600" />
-                      Instant feedback
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-green-600" />
-                      Basic progress tracking
-                    </li>
-                  </ul>
-                </div>
+                    <div className="mt-6 space-y-3 rounded-lg border bg-muted/50 p-4">
+                      <h4 className="font-semibold">
+                        {subscription?.plan_type === 'paid' ? 'Premium Features:' : 'Free Plan Features:'}
+                      </h4>
+                      <ul className="space-y-2 text-sm">
+                        {subscription?.plan_type === 'paid' ? (
+                          <>
+                            <li className="flex items-center gap-2">
+                              <CheckCircle2 className="h-4 w-4 text-green-600" />
+                              Unlimited questions per day
+                            </li>
+                            <li className="flex items-center gap-2">
+                              <CheckCircle2 className="h-4 w-4 text-green-600" />
+                              Detailed explanations for every answer
+                            </li>
+                            <li className="flex items-center gap-2">
+                              <CheckCircle2 className="h-4 w-4 text-green-600" />
+                              Advanced dashboard & analytics
+                            </li>
+                            <li className="flex items-center gap-2">
+                              <CheckCircle2 className="h-4 w-4 text-green-600" />
+                              Priority support
+                            </li>
+                          </>
+                        ) : (
+                          <>
+                            <li className="flex items-center gap-2">
+                              <CheckCircle2 className="h-4 w-4 text-green-600" />
+                              2 questions per day
+                            </li>
+                            <li className="flex items-center gap-2">
+                              <CheckCircle2 className="h-4 w-4 text-green-600" />
+                              Basic stats tracking
+                            </li>
+                            <li className="flex items-center gap-2">
+                              <CheckCircle2 className="h-4 w-4 text-green-600" />
+                              Streak tracking
+                            </li>
+                          </>
+                        )}
+                      </ul>
+                    </div>
+
+                    {subscription?.is_paid && (
+                      <div className="mt-6 flex gap-2">
+                        <Button variant="outline" asChild className="flex-1">
+                          <a href="https://polar.sh" target="_blank" rel="noopener noreferrer">
+                            Manage Billing
+                          </a>
+                        </Button>
+                      </div>
+                    )}
+                  </>
+                )}
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Upgrade to Pro</CardTitle>
-                <CardDescription>Unlock advanced features and accelerate your learning</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="rounded-lg border-2 border-blue-600 p-6 space-y-4">
-                  <Badge className="bg-gradient-to-r from-yellow-400 to-orange-500">
-                    Coming Soon
-                  </Badge>
-                  <div>
-                    <h3 className="text-xl font-bold">Pro Plan</h3>
-                    <p className="text-3xl font-bold mt-2">$29.99</p>
-                    <p className="text-sm text-muted-foreground">per month</p>
+            {!subscription?.is_paid && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Upgrade to Premium</CardTitle>
+                  <CardDescription>Unlock unlimited access and detailed explanations</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="rounded-lg border-2 border-primary p-6 space-y-4">
+                    <div className="flex items-center gap-2">
+                      <Crown className="h-6 w-6 text-primary" />
+                      <h3 className="text-xl font-bold">Premium Plan</h3>
+                    </div>
+                    <div>
+                      <p className="text-3xl font-bold">$29</p>
+                      <p className="text-sm text-muted-foreground">per month</p>
+                    </div>
+                    <ul className="space-y-2 text-sm">
+                      <li className="flex items-center gap-2">
+                        <CheckCircle2 className="h-4 w-4 text-green-600" />
+                        Unlimited questions
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <CheckCircle2 className="h-4 w-4 text-green-600" />
+                        Detailed explanations
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <CheckCircle2 className="h-4 w-4 text-green-600" />
+                        Advanced analytics
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <CheckCircle2 className="h-4 w-4 text-green-600" />
+                        Priority support
+                      </li>
+                    </ul>
+                    <Button
+                      className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                      onClick={handleUpgrade}
+                      disabled={isUpgrading}
+                    >
+                      {isUpgrading ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Loading...
+                        </>
+                      ) : (
+                        'Upgrade Now'
+                      )}
+                    </Button>
                   </div>
-                  <ul className="space-y-2 text-sm">
-                    <li className="flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-green-600" />
-                      AI-powered adaptive learning
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-green-600" />
-                      Advanced analytics dashboard
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-green-600" />
-                      Full-length timed exams
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-green-600" />
-                      Domain-specific practice
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-green-600" />
-                      Priority support
-                    </li>
-                  </ul>
-                  <Button
-                    className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
-                    disabled
-                  >
-                    Coming Soon
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
         </Tabs>
       </main>

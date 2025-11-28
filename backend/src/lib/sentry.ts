@@ -1,32 +1,16 @@
-// Sentry temporarily disabled for deployment
-// TODO: Re-enable after deployment works
+import * as Sentry from '@sentry/node';
+import { nodeProfilingIntegration } from '@sentry/profiling-node';
 
-export const initSentry = () => {
-  console.warn('⚠️  Sentry disabled (not configured yet)')
+if (process.env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    environment: process.env.NODE_ENV || 'development',
+    integrations: [
+      nodeProfilingIntegration(),
+    ],
+    tracesSampleRate: 1.0,
+    profilesSampleRate: 1.0,
+  });
 }
 
-// Type definition to match real Sentry API
-interface SentryOptions {
-  tags?: Record<string, string>
-  user?: {
-    id?: string
-    ip_address?: string
-  }
-}
-
-interface SentryInterface {
-  setupExpressErrorHandler: () => void
-  captureException: (error: any, options?: SentryOptions) => void
-}
-
-// Dummy Sentry export to avoid breaking imports
-// Matches the real Sentry API signature
-export const Sentry: SentryInterface = {
-  setupExpressErrorHandler: () => {},
-  captureException: (error: any, options?: SentryOptions) => {
-    console.error('Error:', error)
-    if (options) {
-      console.error('Error context:', options)
-    }
-  }
-}
+export default Sentry;

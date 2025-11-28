@@ -18,41 +18,21 @@ export function Navbar() {
         </Link>
 
         {/* Navigation Links */}
-        <SignedIn>
-          <nav className="flex items-center gap-6">
-            <Link
-              href="/dashboard"
-              className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
-            >
-              Dashboard
-            </Link>
-            <Link
-              href="/study"
-              className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
-            >
-              Study
-            </Link>
-            <Link
-              href="/question"
-              className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
-            >
-              Practice
-            </Link>
-            <Link
-              href="/settings"
-              className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
-            >
-              Settings
-            </Link>
-          </nav>
-        </SignedIn>
+        <nav className="flex items-center gap-6">
+          <Link
+            href="/#pricing"
+            className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
+          >
+            Pricing
+          </Link>
+        </nav>
 
         {/* Right side: Dark mode toggle + User button */}
         <div className="flex items-center gap-4">
           <ThemeToggle />
           <SignedIn>
             <UserButton
-              afterSignOutUrl="/sign-in"
+              afterSignOutUrl="/"
               appearance={{
                 elements: {
                   avatarBox: "h-9 w-9",

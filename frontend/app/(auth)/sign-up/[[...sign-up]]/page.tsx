@@ -17,6 +17,7 @@ export default function SignUpPage() {
         {/* Clerk Sign Up Component */}
         <div className="animate-fade-in">
           <SignUp
+            forceRedirectUrl="/dashboard"
             appearance={{
               elements: {
                 rootBox: "mx-auto",

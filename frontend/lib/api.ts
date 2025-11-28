@@ -251,3 +251,90 @@ export async function getEnhancedUserStats(userId: string): Promise<EnhancedUser
     throw error;
   }
 }
+
+// ============================================
+// SUBSCRIPTION API (Week 4 - Polar.sh)
+// ============================================
+
+export interface Subscription {
+  id: string;
+  user_id: string;
+  plan_type: 'free' | 'paid' | 'coach';
+  status: 'active' | 'canceled' | 'past_due' | 'trialing';
+  polar_customer_id: string | null;
+  polar_subscription_id: string | null;
+  polar_product_id: string | null;
+  current_period_start: string | null;
+  current_period_end: string | null;
+  cancel_at: string | null;
+  canceled_at: string | null;
+  started_at: string | null;
+  created_at: string;
+  updated_at: string;
+  is_paid: boolean;
+}
+
+/**
+ * Get user's subscription status
+ */
+export async function getUserSubscription(userId: string): Promise<Subscription> {
+  try {
+    const response = await fetch(`${API_URL}/api/subscription?userId=${userId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch subscription');
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error('Error fetching subscription:', error);
+    // Return free plan as fallback
+    return {
+      id: '',
+      user_id: userId,
+      plan_type: 'free',
+      status: 'active',
+      polar_customer_id: null,
+      polar_subscription_id: null,
+      polar_product_id: null,
+      current_period_start: null,
+      current_period_end: null,
+      cancel_at: null,
+      canceled_at: null,
+      started_at: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      is_paid: false
+    };
+  }
+}
+
+/**
+ * Create Polar checkout URL
+ */
+export async function createCheckoutUrl(userId: string, userEmail: string): Promise<string> {
+  try {
+    const response = await fetch(`${API_URL}/api/checkout/create`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ userId, userEmail }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to create checkout');
+    }
+
+    const data = await response.json();
+    return data.url;
+  } catch (error) {
+    console.error('Error creating checkout:', error);
+    throw error;
+  }
+}
