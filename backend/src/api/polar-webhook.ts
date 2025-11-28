@@ -77,12 +77,8 @@ async function handleCheckoutCompleted(data: any): Promise<void> {
     return;
   }
 
-  // Optional: Validate product ID
-  const expectedProductId = process.env.POLAR_PREMIUM_PRODUCT_ID;
-  if (expectedProductId && data.product_id !== expectedProductId) {
-    logger.warn(`Unexpected product ID: ${data.product_id}, expected: ${expectedProductId}`);
-    // Still process, but log the mismatch
-  }
+  // Product ID validation removed - using checkout links now
+  // Checkout links handle product selection, so validation is not needed
 
   await upgradeSubscription(userId, {
     polarCustomerId: data.customer_id,
