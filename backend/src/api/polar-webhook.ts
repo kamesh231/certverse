@@ -153,6 +153,9 @@ async function handleCheckoutCompleted(data: any): Promise<void> {
     polarSubscriptionId: data.subscription_id,
     currentPeriodStart: data.current_period_start,
     currentPeriodEnd: data.current_period_end,
+    status: data.status,  // Pass status to detect trialing
+    trialStart: data.trial_start,
+    trialEnd: data.trial_end,
   });
 
   logger.info(`Checkout completed for user ${userId}`);
@@ -232,6 +235,9 @@ async function handleSubscriptionUpdated(data: any): Promise<void> {
         polarSubscriptionId: data.id,
         currentPeriodStart: data.current_period_start,
         currentPeriodEnd: data.current_period_end,
+        status: data.status,
+        trialStart: data.trial_start,
+        trialEnd: data.trial_end,
       });
 
       return;
@@ -328,6 +334,9 @@ async function handleCustomerStateChanged(data: any): Promise<void> {
           polarSubscriptionId: subscription.id,
           currentPeriodStart: subscription.current_period_start,
           currentPeriodEnd: subscription.current_period_end,
+          status: subscription.status,
+          trialStart: subscription.trial_start,
+          trialEnd: subscription.trial_end,
         });
 
         logger.info(`Created/updated subscription for user ${userId}`);

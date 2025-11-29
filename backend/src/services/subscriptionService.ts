@@ -11,6 +11,9 @@ export interface Subscription {
   current_period_start?: string;
   current_period_end?: string;
   cancel_at?: string;
+  trial_start?: string;
+  trial_end?: string;
+  has_used_trial?: boolean;
   is_paid: boolean;
   created_at: string;
   updated_at: string;
@@ -64,6 +67,28 @@ export async function isPaidUser(userId: string): Promise<boolean> {
   return subscription.is_paid;
 }
 
+// Check if user is eligible for a trial (hasn't used one before)
+export async function canOfferTrial(userId: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from('subscriptions')
+    .select('has_used_trial')
+    .eq('user_id', userId)
+    .single();
+
+  if (error && error.code === 'PGRST116') {
+    // No subscription record yet, user is eligible for trial
+    return true;
+  }
+
+  if (error) {
+    logger.error('Error checking trial eligibility:', error);
+    throw error;
+  }
+
+  // User can get trial only if they haven't used one before
+  return !data.has_used_trial;
+}
+
 // Upgrade user to paid subscription
 export async function upgradeSubscription(
   userId: string,
@@ -72,19 +97,32 @@ export async function upgradeSubscription(
     polarSubscriptionId: string;
     currentPeriodStart: string;
     currentPeriodEnd: string;
+    status?: string;
+    trialStart?: string;
+    trialEnd?: string;
   }
 ): Promise<void> {
+  const updateData: any = {
+    plan_type: 'paid',
+    status: polarData.status || 'active',
+    polar_customer_id: polarData.polarCustomerId,
+    polar_subscription_id: polarData.polarSubscriptionId,
+    current_period_start: polarData.currentPeriodStart,
+    current_period_end: polarData.currentPeriodEnd,
+    updated_at: new Date().toISOString(),
+  };
+
+  // If this is a trial subscription, track it
+  if (polarData.status === 'trialing') {
+    updateData.trial_start = polarData.trialStart;
+    updateData.trial_end = polarData.trialEnd;
+    updateData.has_used_trial = true;  // Mark that trial has been used
+    logger.info(`Starting trial for user ${userId} (ends: ${polarData.trialEnd})`);
+  }
+
   const { error } = await supabase
     .from('subscriptions')
-    .update({
-      plan_type: 'paid',
-      status: 'active',
-      polar_customer_id: polarData.polarCustomerId,
-      polar_subscription_id: polarData.polarSubscriptionId,
-      current_period_start: polarData.currentPeriodStart,
-      current_period_end: polarData.currentPeriodEnd,
-      updated_at: new Date().toISOString(),
-    })
+    .update(updateData)
     .eq('user_id', userId);
 
   if (error) {
@@ -92,7 +130,7 @@ export async function upgradeSubscription(
     throw error;
   }
 
-  logger.info(`Upgraded subscription for user ${userId}`);
+  logger.info(`Upgraded subscription for user ${userId} to ${polarData.status || 'active'}`);
 }
 
 // Downgrade user to free subscription
@@ -182,14 +220,25 @@ export async function getSubscriptionByPolarId(
 // Create checkout URL for Polar
 export async function createCheckout(userId: string, userEmail: string): Promise<string> {
   const isSandbox = process.env.NODE_ENV !== 'production' || process.env.POLAR_SANDBOX === 'true';
-  const apiBase = isSandbox 
-    ? 'https://sandbox-api.polar.sh' 
+  const apiBase = isSandbox
+    ? 'https://sandbox-api.polar.sh'
     : 'https://api.polar.sh';
-  
+
   const checkoutLinkId = process.env.POLAR_CHECKOUT_LINK_ID || 'polar_cl_8zC0XSFEmnoN0ty4RWLuN7n65AVeQAwrQxgl03p2G9o';
-  
+
   if (!checkoutLinkId) {
     throw new Error('POLAR_CHECKOUT_LINK_ID environment variable is required');
+  }
+
+  // Check trial eligibility
+  const isTrialEligible = await canOfferTrial(userId);
+  if (!isTrialEligible) {
+    logger.warn(`User ${userId} has already used trial, but allowing checkout to proceed`);
+    // Note: Polar will handle trial eligibility on their end as well.
+    // If you want to strictly prevent repeat trials, you could:
+    // throw new Error('User has already used their trial period');
+  } else {
+    logger.info(`User ${userId} is eligible for trial`);
   }
 
   // Build checkout URL with metadata and email as query parameters
@@ -197,7 +246,7 @@ export async function createCheckout(userId: string, userEmail: string): Promise
     'customer_email': userEmail,
     'metadata[user_id]': userId,
   });
-  
+
   const checkoutUrl = `${apiBase}/v1/checkout-links/${checkoutLinkId}/redirect?${params.toString()}`;
 
   logger.info(`Created checkout URL for user ${userId}: ${checkoutUrl}`);
