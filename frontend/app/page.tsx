@@ -67,7 +67,7 @@ export default function Home() {
       </section>
 
       {/* Features Section */}
-      <section className="px-6 py-24 sm:px-12 lg:px-24">
+      <section id="features" className="px-6 py-24 sm:px-12 lg:px-24">
         <div className="mx-auto max-w-6xl">
           <div className="mb-16 text-center">
             <h2 className="mb-4 text-balance text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl">

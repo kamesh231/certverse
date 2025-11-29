@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { Button } from "@/components/ui/button"
 import { UserButton, SignedIn, SignedOut } from "@clerk/nextjs"
 import { ThemeToggle } from "./theme-toggle"
 import { Award } from "lucide-react"
@@ -20,6 +21,12 @@ export function Navbar() {
         {/* Navigation Links */}
         <nav className="flex items-center gap-6">
           <Link
+            href="/#features"
+            className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
+          >
+            Features
+          </Link>
+          <Link
             href="/#pricing"
             className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
           >
@@ -31,6 +38,12 @@ export function Navbar() {
         <div className="flex items-center gap-4">
           <ThemeToggle />
           <SignedIn>
+            <Link
+              href="/dashboard"
+              className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
+            >
+              Dashboard
+            </Link>
             <UserButton
               afterSignOutUrl="/"
               appearance={{
@@ -47,6 +60,9 @@ export function Navbar() {
             >
               Sign In
             </Link>
+            <Button asChild size="sm">
+              <Link href="/sign-up">Sign Up</Link>
+            </Button>
           </SignedOut>
         </div>
       </div>
