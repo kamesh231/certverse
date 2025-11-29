@@ -56,7 +56,7 @@ export async function fetchPolarCustomer(customerId: string): Promise<PolarCusto
       throw new Error(`Polar API error (${response.status}): ${errorText}`);
     }
 
-    const customer = await response.json();
+    const customer = await response.json() as PolarCustomer;
     logger.info(`Successfully fetched Polar customer: ${customerId} (${customer.email})`);
 
     return customer;
@@ -98,7 +98,7 @@ export async function fetchPolarSubscription(subscriptionId: string): Promise<Po
       throw new Error(`Polar API error (${response.status}): ${errorText}`);
     }
 
-    const subscription = await response.json();
+    const subscription = await response.json() as PolarSubscription;
     logger.info(`Successfully fetched Polar subscription: ${subscriptionId}`);
 
     return subscription;
@@ -160,7 +160,7 @@ export async function fetchPolarSubscriptions(organizationId?: string): Promise<
       throw new Error(`Polar API error (${response.status}): ${errorText}`);
     }
 
-    const data = await response.json();
+    const data = await response.json() as { items?: PolarSubscription[] };
     const subscriptions = data.items || [];
 
     logger.info(`Successfully fetched ${subscriptions.length} Polar subscriptions`);
