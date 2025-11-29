@@ -21,6 +21,14 @@ export async function handlePolarWebhook(req: Request, res: Response): Promise<v
     const signature = req.headers['polar-signature'] as string;
     const webhookSecret = process.env.POLAR_WEBHOOK_SECRET;
 
+    // Enhanced debug logging
+    logger.info('=== WEBHOOK DEBUG INFO ===');
+    logger.info(`Signature received: ${signature}`);
+    logger.info(`Webhook secret configured: ${webhookSecret ? 'YES (length: ' + webhookSecret.length + ')' : 'NO'}`);
+    logger.info(`Raw body type: ${typeof (req as any).rawBody}`);
+    logger.info(`Raw body length: ${(req as any).rawBody ? (req as any).rawBody.length : 'N/A'}`);
+    logger.info(`Body type: ${typeof req.body}`);
+
     if (!webhookSecret) {
       logger.error('POLAR_WEBHOOK_SECRET not configured');
       res.status(500).json({ error: 'Webhook secret not configured' });
@@ -35,8 +43,19 @@ export async function handlePolarWebhook(req: Request, res: Response): Promise<v
       return;
     }
 
+    // Compute expected signature
+    const hmac = crypto.createHmac('sha256', webhookSecret);
+    const expectedSignature = hmac.update(rawBody).digest('hex');
+
+    logger.info(`Expected signature: ${expectedSignature}`);
+    logger.info(`Signatures match: ${signature === expectedSignature}`);
+
     if (!verifyPolarWebhook(rawBody, signature, webhookSecret)) {
       logger.warn('Invalid webhook signature');
+      logger.warn('This may be due to:');
+      logger.warn('1. Incorrect POLAR_WEBHOOK_SECRET in environment');
+      logger.warn('2. Code not deployed to Railway yet');
+      logger.warn('3. Webhook secret mismatch with Polar dashboard');
       res.status(401).json({ error: 'Invalid signature' });
       return;
     }
