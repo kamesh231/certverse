@@ -32,8 +32,15 @@ app.post('/api/webhooks/polar',
   express.raw({ type: 'application/json' }),
   async (req: Request, res: Response) => {
     try {
-      // Convert raw body to JSON
-      req.body = JSON.parse(req.body.toString());
+      // Store raw body for signature verification
+      const rawBody = req.body.toString();
+      // Parse JSON for processing
+      const parsedBody = JSON.parse(rawBody);
+
+      // Add both to request for webhook handler
+      (req as any).rawBody = rawBody;
+      req.body = parsedBody;
+
       await handlePolarWebhook(req, res);
     } catch (error) {
       logger.error('Webhook error:', error);

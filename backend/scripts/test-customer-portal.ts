@@ -6,7 +6,7 @@ import { getCustomerPortalUrl } from '../src/lib/polarClient';
 import logger from '../src/lib/logger';
 
 async function testCustomerPortal() {
-  // Replace with actual customer ID from your Polar dashboard
+  // Actual customer ID for venkata.motamarry
   const customerId = '5e8e02a7-a1ba-442d-b587-7d44377873fe';
 
   console.log('🧪 Testing Customer Portal URL Generation\n');

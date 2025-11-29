@@ -27,9 +27,15 @@ export async function handlePolarWebhook(req: Request, res: Response): Promise<v
       return;
     }
 
-    // Verify signature
-    const payload = JSON.stringify(req.body);
-    if (!verifyPolarWebhook(payload, signature, webhookSecret)) {
+    // Verify signature using raw body
+    const rawBody = (req as any).rawBody;
+    if (!rawBody) {
+      logger.error('Raw body not found for signature verification');
+      res.status(500).json({ error: 'Internal error' });
+      return;
+    }
+
+    if (!verifyPolarWebhook(rawBody, signature, webhookSecret)) {
       logger.warn('Invalid webhook signature');
       res.status(401).json({ error: 'Invalid signature' });
       return;
@@ -40,24 +46,58 @@ export async function handlePolarWebhook(req: Request, res: Response): Promise<v
     logger.info(`Received Polar webhook: ${type}`);
 
     switch (type) {
+      // Checkout Events
+      case 'checkout.created':
+        logger.info('Checkout created (no action needed)');
+        break;
+
+      case 'checkout.updated':
+        await handleCheckoutCompleted(data);
+        break;
+
       case 'checkout.completed':
         await handleCheckoutCompleted(data);
+        break;
+
+      // Subscription Events
+      case 'subscription.created':
+        await handleSubscriptionUpdated(data);
+        break;
+
+      case 'subscription.active':
+        await handleSubscriptionUpdated(data);
+        break;
+
+      case 'subscription.updated':
+        await handleSubscriptionUpdated(data);
         break;
 
       case 'subscription.canceled':
         await handleSubscriptionCanceled(data);
         break;
 
+      case 'subscription.uncanceled':
+        await handleSubscriptionUncanceled(data);
+        break;
+
+      case 'subscription.revoked':
       case 'subscription.ended':
         await handleSubscriptionEnded(data);
         break;
 
+      // Order Events
+      case 'order.created':
+        await handleOrderCreated(data);
+        break;
+
+      // Payment Events
       case 'payment.failed':
         await handlePaymentFailed(data);
         break;
 
-      case 'subscription.updated':
-        await handleSubscriptionUpdated(data);
+      // Customer Events
+      case 'customer.state_changed':
+        await handleCustomerStateChanged(data);
         break;
 
       default:
@@ -206,4 +246,101 @@ async function handleSubscriptionUpdated(data: any): Promise<void> {
   });
 
   logger.info(`Subscription updated for user ${subscription.user_id}`);
+}
+
+async function handleSubscriptionUncanceled(data: any): Promise<void> {
+  const subscription = await getSubscriptionByPolarId(data.id);
+
+  if (!subscription) {
+    logger.error(`Subscription not found for Polar ID: ${data.id}`);
+    return;
+  }
+
+  // Reactivate the subscription
+  await updateSubscriptionStatus(subscription.user_id, 'active', {
+    currentPeriodEnd: data.current_period_end,
+  });
+
+  logger.info(`Subscription reactivated for user ${subscription.user_id}`);
+}
+
+async function handleOrderCreated(data: any): Promise<void> {
+  // Order created can be for:
+  // 1. Initial purchase (billing_reason: 'purchase' or 'subscription_create')
+  // 2. Subscription renewal (billing_reason: 'subscription_cycle')
+  // 3. Subscription update (billing_reason: 'subscription_update')
+
+  logger.info(`Order created: ${data.id}, billing_reason: ${data.billing_reason}`);
+
+  if (data.billing_reason === 'subscription_cycle') {
+    // This is a renewal - update the period dates
+    if (data.subscription_id) {
+      const subscription = await getSubscriptionByPolarId(data.subscription_id);
+
+      if (subscription) {
+        await updateSubscriptionStatus(subscription.user_id, 'active', {
+          currentPeriodEnd: data.subscription?.current_period_end,
+        });
+
+        logger.info(`Subscription renewed for user ${subscription.user_id}`);
+      }
+    }
+  } else {
+    logger.info(`Order created for billing reason: ${data.billing_reason} (no action needed)`);
+  }
+}
+
+async function handleCustomerStateChanged(data: any): Promise<void> {
+  // Handle customer.state_changed event
+  // This event contains active_subscriptions array
+  logger.info(`Customer state changed for customer ${data.id}`);
+
+  if (!data.active_subscriptions || data.active_subscriptions.length === 0) {
+    logger.info('Customer has no active subscriptions');
+    return;
+  }
+
+  // Process each active subscription
+  for (const subscription of data.active_subscriptions) {
+    try {
+      // Try to find existing subscription in our database
+      let existingSubscription = await getSubscriptionByPolarId(subscription.id);
+
+      if (!existingSubscription) {
+        // No subscription found, try email matching
+        logger.info(`No subscription found for Polar ID ${subscription.id}, attempting email match`);
+
+        if (!data.email) {
+          logger.error('No email in customer data');
+          continue;
+        }
+
+        const userId = await findUserByEmail(data.email);
+
+        if (!userId) {
+          logger.error(`No user found for email: ${data.email}`);
+          continue;
+        }
+
+        // Create/update subscription
+        await upgradeSubscription(userId, {
+          polarCustomerId: data.id,
+          polarSubscriptionId: subscription.id,
+          currentPeriodStart: subscription.current_period_start,
+          currentPeriodEnd: subscription.current_period_end,
+        });
+
+        logger.info(`Created/updated subscription for user ${userId}`);
+      } else {
+        // Update existing subscription status
+        await updateSubscriptionStatus(existingSubscription.user_id, subscription.status, {
+          currentPeriodEnd: subscription.current_period_end,
+        });
+
+        logger.info(`Updated subscription status for user ${existingSubscription.user_id}`);
+      }
+    } catch (error) {
+      logger.error(`Error processing subscription ${subscription.id}:`, error);
+    }
+  }
 }
