@@ -110,19 +110,47 @@ export async function fetchPolarSubscription(subscriptionId: string): Promise<Po
 
 /**
  * Get Polar customer portal URL for managing subscription
+ * Creates a customer portal session via Polar API
  */
 export async function getCustomerPortalUrl(customerId: string): Promise<string> {
-  // Polar customer portal URL format
-  // Note: This may need to be adjusted based on Polar's actual customer portal implementation
-  const isSandbox = process.env.POLAR_SANDBOX === 'true';
-  const baseUrl = isSandbox ? 'https://sandbox.polar.sh' : 'https://polar.sh';
+  const accessToken = process.env.POLAR_ACCESS_TOKEN;
 
-  // Polar's customer portal URL - adjust if needed based on Polar docs
-  const portalUrl = `${baseUrl}/customer-portal?customer=${customerId}`;
+  if (!accessToken) {
+    logger.error('POLAR_ACCESS_TOKEN environment variable is not set');
+    throw new Error('POLAR_ACCESS_TOKEN not configured');
+  }
 
-  logger.info(`Generated customer portal URL for ${customerId}: ${portalUrl}`);
+  const url = `${POLAR_API_BASE}/v1/customer-sessions`;
 
-  return portalUrl;
+  try {
+    logger.info(`Creating customer portal session for customer: ${customerId}`);
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        customer_id: customerId,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Polar API error (${response.status}): ${errorText}`);
+    }
+
+    const session = await response.json() as { customer_portal_url: string };
+    const portalUrl = session.customer_portal_url;
+
+    logger.info(`Generated customer portal URL for ${customerId}: ${portalUrl}`);
+
+    return portalUrl;
+  } catch (error) {
+    logger.error(`Error creating customer portal session for ${customerId}:`, error);
+    throw error;
+  }
 }
 
 /**
