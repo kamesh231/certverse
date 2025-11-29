@@ -6,6 +6,7 @@ import { handlePolarWebhook } from './api/polar-webhook';
 import { getQuestion } from './api/get-question';
 import { submitAnswer } from './api/submit-answer';
 import { getUserSubscription, createCheckout } from './services/subscriptionService';
+import { getCustomerPortalUrl } from './lib/polarClient';
 import { rateLimiter } from './middleware/rateLimiter';
 import { errorHandler } from './middleware/errorHandler';
 import logger from './lib/logger';
@@ -72,6 +73,26 @@ app.post('/api/checkout/create', asyncHandler(async (req: Request, res: Response
 
   const checkoutUrl = await createCheckout(userId, userEmail);
   res.json({ url: checkoutUrl }); // Frontend expects 'url' field
+}));
+
+// Customer portal endpoint
+app.get('/api/subscription/portal-url', asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.query.userId as string;
+
+  if (!userId) {
+    res.status(400).json({ error: 'userId is required' });
+    return;
+  }
+
+  const subscription = await getUserSubscription(userId);
+
+  if (!subscription.polar_customer_id) {
+    res.status(404).json({ error: 'No active Polar subscription found' });
+    return;
+  }
+
+  const portalUrl = await getCustomerPortalUrl(subscription.polar_customer_id);
+  res.json({ url: portalUrl });
 }));
 
 // Question endpoints

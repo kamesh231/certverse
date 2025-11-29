@@ -7,6 +7,8 @@ import {
   updateSubscriptionStatus,
   getSubscriptionByPolarId,
 } from '../services/subscriptionService';
+import { fetchPolarCustomer } from '../lib/polarClient';
+import { findUserByEmail } from '../lib/userLookup';
 
 function verifyPolarWebhook(payload: string, signature: string, secret: string): boolean {
   const hmac = crypto.createHmac('sha256', secret);
@@ -70,11 +72,37 @@ export async function handlePolarWebhook(req: Request, res: Response): Promise<v
 }
 
 async function handleCheckoutCompleted(data: any): Promise<void> {
-  const userId = data.metadata?.user_id;
+  let userId = data.metadata?.user_id;
 
+  // NEW: Fallback to email matching if no user_id in metadata
   if (!userId) {
-    logger.error('No user_id in checkout.completed metadata');
-    return;
+    logger.warn('No user_id in checkout.completed metadata, attempting email match');
+
+    try {
+      // Fetch Polar customer to get email
+      const customer = await fetchPolarCustomer(data.customer_id);
+
+      if (!customer || !customer.email) {
+        logger.error(`No email found for Polar customer ${data.customer_id}`);
+        return;
+      }
+
+      // Find user by email in our system
+      userId = await findUserByEmail(customer.email);
+
+      if (!userId) {
+        logger.error(`No user found in Certverse for email: ${customer.email}`);
+        logger.error('Please ensure this user has signed up in Certverse before subscribing on Polar');
+        return;
+      }
+
+      logger.info(
+        `Successfully matched Polar customer ${data.customer_id} to user ${userId} via email ${customer.email}`
+      );
+    } catch (error) {
+      logger.error('Error during email matching in checkout.completed:', error);
+      return;
+    }
   }
 
   // Product ID validation removed - using checkout links now
@@ -131,11 +159,46 @@ async function handlePaymentFailed(data: any): Promise<void> {
 }
 
 async function handleSubscriptionUpdated(data: any): Promise<void> {
-  const subscription = await getSubscriptionByPolarId(data.id);
+  let subscription = await getSubscriptionByPolarId(data.id);
 
+  // If subscription not found in our DB, try to match by customer email
   if (!subscription) {
-    logger.error(`Subscription not found for Polar ID: ${data.id}`);
-    return;
+    logger.warn(`Subscription not found for Polar ID: ${data.id}, attempting email match`);
+
+    try {
+      // Fetch Polar customer to get email
+      const customer = await fetchPolarCustomer(data.customer_id);
+
+      if (!customer || !customer.email) {
+        logger.error(`No email found for Polar customer ${data.customer_id}`);
+        return;
+      }
+
+      // Find user by email
+      const userId = await findUserByEmail(customer.email);
+
+      if (!userId) {
+        logger.error(`No user found in Certverse for email: ${customer.email}`);
+        return;
+      }
+
+      logger.info(
+        `Matched Polar subscription ${data.id} to user ${userId} via email ${customer.email}`
+      );
+
+      // Create/update subscription record
+      await upgradeSubscription(userId, {
+        polarCustomerId: data.customer_id,
+        polarSubscriptionId: data.id,
+        currentPeriodStart: data.current_period_start,
+        currentPeriodEnd: data.current_period_end,
+      });
+
+      return;
+    } catch (error) {
+      logger.error('Error during email matching in subscription.updated:', error);
+      return;
+    }
   }
 
   await updateSubscriptionStatus(subscription.user_id, data.status, {

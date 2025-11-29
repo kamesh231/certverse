@@ -12,7 +12,7 @@ import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
-import { getUserStats, getUserSubscription, createCheckoutUrl, type Subscription } from "@/lib/api"
+import { getUserStats, getUserSubscription, createCheckoutUrl, getCustomerPortalUrl, type Subscription } from "@/lib/api"
 import {
   User,
   Settings,
@@ -454,15 +454,34 @@ export default function SettingsPage() {
                             {subscription?.plan_type === 'paid' ? 'Premium Plan' : 'Free Plan'}
                           </h3>
                           <Badge className={subscription?.is_paid ? "bg-gradient-to-r from-blue-600 to-indigo-600" : ""}>
-                            {subscription?.status === 'active' ? 'Active' : subscription?.status}
+                            {subscription?.status === 'trialing' ? 'Trial' :
+                             subscription?.status === 'canceled' ? 'Canceling' :
+                             subscription?.status === 'active' ? 'Active' :
+                             subscription?.status}
                           </Badge>
                         </div>
                         <p className="text-muted-foreground">
                           {subscription?.plan_type === 'paid' ? '$29.00 / month' : '$0.00 / month'}
                         </p>
-                        {subscription?.is_paid && subscription?.current_period_end && (
+
+                        {/* Show trial end date */}
+                        {subscription?.status === 'trialing' && subscription?.current_period_end && (
+                          <p className="text-sm text-amber-600 dark:text-amber-400 font-medium">
+                            Trial ends on {new Date(subscription.current_period_end).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                          </p>
+                        )}
+
+                        {/* Show renewal date for active paid */}
+                        {subscription?.is_paid && subscription?.status === 'active' && subscription?.current_period_end && (
                           <p className="text-sm text-muted-foreground">
-                            Renews on {new Date(subscription.current_period_end).toLocaleDateString()}
+                            Renews on {new Date(subscription.current_period_end).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                          </p>
+                        )}
+
+                        {/* Show cancellation info */}
+                        {subscription?.status === 'canceled' && subscription?.cancel_at && (
+                          <p className="text-sm text-orange-600 dark:text-orange-400 font-medium">
+                            Access until {new Date(subscription.cancel_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
                           </p>
                         )}
                       </div>
@@ -523,12 +542,23 @@ export default function SettingsPage() {
                       </ul>
                     </div>
 
-                    {subscription?.is_paid && (
+                    {subscription?.is_paid && subscription?.polar_customer_id && (
                       <div className="mt-6 flex gap-2">
-                        <Button variant="outline" asChild className="flex-1">
-                          <a href="https://polar.sh" target="_blank" rel="noopener noreferrer">
-                            Manage Billing
-                          </a>
+                        <Button
+                          variant="outline"
+                          className="flex-1"
+                          onClick={async () => {
+                            try {
+                              if (!user?.id) return;
+                              const portalUrl = await getCustomerPortalUrl(user.id);
+                              window.open(portalUrl, '_blank');
+                            } catch (error) {
+                              console.error('Failed to get portal URL:', error);
+                              alert('Unable to open customer portal. Please try again later.');
+                            }
+                          }}
+                        >
+                          View Customer Portal
                         </Button>
                       </div>
                     )}

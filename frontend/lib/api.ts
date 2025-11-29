@@ -338,3 +338,27 @@ export async function createCheckoutUrl(userId: string, userEmail: string): Prom
     throw error;
   }
 }
+
+/**
+ * Get Polar customer portal URL for managing subscription
+ */
+export async function getCustomerPortalUrl(userId: string): Promise<string> {
+  try {
+    const response = await fetch(`${API_URL}/api/subscription/portal-url?userId=${userId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to get customer portal URL');
+    }
+
+    const data = await response.json();
+    return data.url;
+  } catch (error) {
+    console.error('Error getting customer portal URL:', error);
+    throw error;
+  }
+}
