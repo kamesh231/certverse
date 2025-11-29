@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { supabase } from '../lib/supabase';
 import { isPaidUser } from '../services/subscriptionService';
+import { updateStatsAfterAnswer } from '../services/unlockService';
 import logger from '../lib/logger';
 
 export async function submitAnswer(req: Request, res: Response): Promise<void> {
@@ -46,6 +47,9 @@ export async function submitAnswer(req: Request, res: Response): Promise<void> {
       return;
     }
 
+    // Update user stats (streak, total attempted, correct answers)
+    await updateStatsAfterAnswer(userId, isCorrect);
+
     // Check if user is paid to show explanation
     const userIsPaid = await isPaidUser(userId);
 
@@ -55,7 +59,7 @@ export async function submitAnswer(req: Request, res: Response): Promise<void> {
       correctAnswer: question.answer,
       explanation: userIsPaid
         ? (question.explanation || '')
-        : 'P Upgrade to Premium to see detailed explanations',
+        : '⭐ Upgrade to Premium to see detailed explanations',
       responseId: savedResponse.id,
     });
   } catch (error) {
