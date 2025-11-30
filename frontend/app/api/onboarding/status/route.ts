@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const userId = searchParams.get('userId');
@@ -10,7 +12,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const response = await fetch(
-      `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/onboarding/status?userId=${userId}`,
+      `${API_URL}/api/onboarding/status?userId=${userId}`,
       {
         headers: {
           'Content-Type': 'application/json',

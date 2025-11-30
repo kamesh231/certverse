@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
     const response = await fetch(
-      `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/onboarding/complete`,
+      `${API_URL}/api/onboarding/complete`,
       {
         method: 'POST',
         headers: {

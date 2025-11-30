@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useUser } from '@clerk/nextjs';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
 interface FirstQuestionStepProps {
   onNext: () => void;
 }
@@ -25,7 +27,7 @@ export default function FirstQuestionStep({ onNext }: FirstQuestionStepProps) {
     if (!user?.id) return;
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/question?userId=${user.id}&category=cisa`);
+      const res = await fetch(`${API_URL}/api/question?userId=${user.id}&category=cisa`);
       const data = await res.json();
 
       if (data && data.id) {
@@ -46,7 +48,7 @@ export default function FirstQuestionStep({ onNext }: FirstQuestionStepProps) {
     setSelectedOption(option);
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/submit`, {
+      const res = await fetch(`${API_URL}/api/submit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
