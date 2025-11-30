@@ -7,22 +7,22 @@ CREATE TABLE IF NOT EXISTS user_onboarding (
 
   -- Onboarding progress
   completed BOOLEAN DEFAULT false,
-  current_step VARCHAR DEFAULT 'welcome', -- 'welcome', 'goal', 'assessment', 'learning_path', 'first_question', 'completed'
+  current_step VARCHAR DEFAULT 'welcome',
   started_at TIMESTAMPTZ DEFAULT NOW(),
   completed_at TIMESTAMPTZ,
 
   -- User selections during onboarding
-  primary_goal VARCHAR, -- 'certification', 'career_change', 'skill_improvement', 'interview_prep'
-  target_certification VARCHAR, -- 'aws-saa', 'cka', 'azure-admin', etc.
-  experience_level VARCHAR, -- 'beginner', 'intermediate', 'advanced'
-  study_time_per_week INT, -- Hours per week
+  primary_goal VARCHAR,
+  target_certification VARCHAR,
+  experience_level VARCHAR,
+  study_time_per_week INT,
   target_exam_date DATE,
 
   -- Assessment results
-  assessment_score INT, -- 0-100
+  assessment_score INT,
   assessment_completed BOOLEAN DEFAULT false,
-  weak_topics TEXT[], -- ['networking', 'security']
-  strong_topics TEXT[], -- ['compute', 'storage']
+  weak_topics TEXT[],
+  strong_topics TEXT[]
 
   -- Onboarding steps completed
   steps_completed JSONB DEFAULT '[]'::jsonb,
@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS user_preferences (
   -- Study preferences
   daily_reminder_time TIME DEFAULT '09:00:00',
   reminder_enabled BOOLEAN DEFAULT true,
-  preferred_difficulty VARCHAR DEFAULT 'medium', -- 'easy', 'medium', 'hard', 'mixed'
+  preferred_difficulty VARCHAR DEFAULT 'medium',
   questions_per_session INT DEFAULT 10,
 
   -- Notification preferences
@@ -54,7 +54,7 @@ CREATE TABLE IF NOT EXISTS user_preferences (
   dark_mode BOOLEAN DEFAULT false,
 
   -- Learning preferences
-  focus_areas TEXT[], -- Specific topics to focus on
+  focus_areas TEXT[],
   skip_known_topics BOOLEAN DEFAULT false,
 
   created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -64,16 +64,16 @@ CREATE TABLE IF NOT EXISTS user_preferences (
 -- Onboarding assessment questions
 CREATE TABLE IF NOT EXISTS assessment_questions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  category VARCHAR NOT NULL, -- 'aws', 'azure', 'gcp', 'kubernetes'
-  topic VARCHAR NOT NULL, -- 'compute', 'networking', 'security', etc.
+  category VARCHAR NOT NULL,
+  topic VARCHAR NOT NULL,
   difficulty VARCHAR DEFAULT 'medium',
   question_text TEXT NOT NULL,
-  options JSONB NOT NULL, -- [{"id": "a", "text": "..."}, ...]
+  options JSONB NOT NULL,
   correct_option VARCHAR NOT NULL,
   explanation TEXT,
 
   -- Assessment metadata
-  assessment_type VARCHAR DEFAULT 'initial', -- 'initial', 'skill_check'
+  assessment_type VARCHAR DEFAULT 'initial',
   order_index INT,
 
   created_at TIMESTAMPTZ DEFAULT NOW()
@@ -94,7 +94,7 @@ CREATE TABLE IF NOT EXISTS assessment_responses (
 -- Onboarding tips/tooltips shown
 CREATE TABLE IF NOT EXISTS onboarding_tips_shown (
   user_id VARCHAR,
-  tip_id VARCHAR, -- 'first_question', 'streak_explained', 'upgrade_benefits'
+  tip_id VARCHAR,
   shown_at TIMESTAMPTZ DEFAULT NOW(),
   dismissed BOOLEAN DEFAULT false,
 
