@@ -24,14 +24,6 @@ export default function OnboardingPage() {
     }
   }, [user]);
 
-  // Auto-redirect when reaching completed step
-  useEffect(() => {
-    if (STEPS[currentStepIndex] === 'completed' && !loading) {
-      // Automatically complete onboarding and redirect to dashboard
-      completeOnboarding();
-    }
-  }, [currentStepIndex, loading]);
-
   const checkOnboardingStatus = async () => {
     try {
       const res = await fetch(`/api/onboarding/status?userId=${user?.id}`);
@@ -60,7 +52,7 @@ export default function OnboardingPage() {
     if (currentStepIndex < STEPS.length - 1) {
       setCurrentStepIndex(currentStepIndex + 1);
     }
-    // When reaching the last step, the useEffect will handle the auto-redirect
+    // When reaching the last step, show completion screen
   };
 
   const completeOnboarding = async () => {
@@ -138,7 +130,29 @@ export default function OnboardingPage() {
           {currentStep === 'first_question' && (
             <FirstQuestionStep onNext={completeOnboarding} />
           )}
-          {/* Auto-redirects to dashboard when step becomes 'completed' */}
+          {currentStep === 'completed' && (
+            <div className="bg-white rounded-2xl shadow-xl p-8 md:p-12 text-center">
+              <div className="mb-6">
+                <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-12 h-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <h2 className="text-3xl font-bold text-gray-900 mb-2">
+                  Onboarding Successfully completed
+                </h2>
+                <p className="text-gray-600 mb-6">
+                  Your personalized learning journey is ready. Let's get started!
+                </p>
+                <button
+                  onClick={completeOnboarding}
+                  className="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors duration-200 shadow-lg hover:shadow-xl"
+                >
+                  Go to Dashboard →
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
