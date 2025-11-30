@@ -22,8 +22,4 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Error saving confidence:', error);
     return NextResponse.json(
-      { error: 'Failed to save confidence ratings' },
-      { status: 500 }
-    );
-  }
-}
+      { error: 'Failed to save confidenc

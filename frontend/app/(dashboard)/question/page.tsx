@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useUser } from "@clerk/nextjs"
+import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { QuestionCard } from "@/components/question-card"
 import { fetchQuestion, submitAnswer, getRemainingQuestions, Question, SubmitAnswerResponse, UnlockStatus } from "@/lib/api"
@@ -12,10 +13,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 
 export default function QuestionPage() {
   const { user } = useUser()
+  const searchParams = useSearchParams()
   const [question, setQuestion] = useState<Question | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [unlockStatus, setUnlockStatus] = useState<UnlockStatus | null>(null)
+  
+  // Get domain from URL params if present
+  const domainParam = searchParams.get('domain')
+  const domain = domainParam ? parseInt(domainParam, 10) : undefined
 
   const fetchUnlockStatus = async () => {
     if (!user?.id) return
@@ -46,7 +52,7 @@ export default function QuestionPage() {
         return
       }
 
-      const newQuestion = await fetchQuestion(user.id)
+      const newQuestion = await fetchQuestion(user.id, domain)
       setQuestion(newQuestion)
     } catch (err) {
       console.error("Failed to load question:", err)
@@ -58,7 +64,7 @@ export default function QuestionPage() {
 
   useEffect(() => {
     loadQuestion()
-  }, [user?.id])
+  }, [user?.id, domain])
 
   const handleSubmit = async (choice: "A" | "B" | "C" | "D"): Promise<SubmitAnswerResponse> => {
     if (!user?.id || !question) {
@@ -77,12 +83,29 @@ export default function QuestionPage() {
     loadQuestion()
   }
 
+  // Domain names for display
+  const domainNames: Record<number, string> = {
+    1: "Information Systems Governance",
+    2: "Risk Management",
+    3: "Information Systems Acquisition",
+    4: "Information Systems Implementation",
+    5: "Information Systems Operations",
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <main className="container py-8">
         {/* Show remaining counter if unlock status is loaded */}
         {unlockStatus && (
-          <div className="mb-6 flex justify-center gap-4">
+          <div className="mb-6 flex flex-wrap justify-center gap-4">
+            {domain && (
+              <Badge
+                variant="outline"
+                className="text-lg px-4 py-2 border-indigo-500 text-indigo-600 dark:text-indigo-400"
+              >
+                Domain Focus: {domainNames[domain] || `Domain ${domain}`}
+              </Badge>
+            )}
             <Badge
               variant={unlockStatus.remaining > 0 ? "default" : "secondary"}
               className="text-lg px-4 py-2"

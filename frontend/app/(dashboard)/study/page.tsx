@@ -81,8 +81,8 @@ export default function StudyPage() {
         alert("Please select a domain first")
         return
       }
-      // For now, just go to practice mode - domain filtering can be added later
-      router.push("/question")
+      // Navigate to question page with domain filter
+      router.push(`/question?domain=${selectedDomain}`)
       return
     }
 

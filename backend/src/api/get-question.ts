@@ -5,17 +5,28 @@ import logger from '../lib/logger';
 export async function getQuestion(req: Request, res: Response): Promise<void> {
   try {
     const userId = req.query.userId as string;
+    const domain = req.query.domain as string | undefined;
 
     if (!userId) {
       res.status(400).json({ error: 'userId is required' });
       return;
     }
 
-    // Get a random question
-    const { data: questions, error } = await supabase
+    // Build query with optional domain filter
+    let query = supabase
       .from('questions')
-      .select('*')
-      .limit(50);
+      .select('*');
+
+    // Filter by domain if provided
+    if (domain) {
+      const domainNum = parseInt(domain, 10);
+      if (!isNaN(domainNum) && domainNum >= 1 && domainNum <= 5) {
+        query = query.eq('domain', domainNum);
+      }
+    }
+
+    // Get questions (limit to 50 for performance)
+    const { data: questions, error } = await query.limit(50);
 
     if (error) {
       logger.error('Error fetching questions:', error);
