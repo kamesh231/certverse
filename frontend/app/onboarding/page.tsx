@@ -8,7 +8,8 @@ import GoalStep from '@/components/onboarding/GoalStep';
 import ConfidenceStep from '@/components/onboarding/ConfidenceStep';
 import FirstQuestionStep from '@/components/onboarding/FirstQuestionStep';
 
-const STEPS = ['welcome', 'goal', 'confidence', 'first_question', 'completed'];
+// Temporarily skip first_question step until CISA questions are added
+const STEPS = ['welcome', 'goal', 'confidence', 'completed'];
 
 export default function OnboardingPage() {
   const { user } = useUser();
