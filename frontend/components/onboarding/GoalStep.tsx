@@ -65,27 +65,26 @@ export default function GoalStep({ onNext }: GoalStepProps) {
 
       {/* Experience Level */}
       <div className="mb-8">
-          <label className="block text-sm font-medium text-gray-700 mb-3">
-            What's your experience level?
-          </label>
-          <div className="grid md:grid-cols-3 gap-3">
-            {EXPERIENCE_LEVELS.map((level) => (
-              <button
-                key={level.id}
-                onClick={() => setExperienceLevel(level.id)}
-                className={`p-4 rounded-lg border-2 text-center transition-all duration-200 ${
-                  experienceLevel === level.id
-                    ? 'border-blue-600 bg-blue-50 shadow-md'
-                    : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'
-                }`}
-              >
-                <div className="font-semibold text-gray-900">{level.name}</div>
-                <div className="text-sm text-gray-600 mt-1">{level.description}</div>
-              </button>
-            ))}
-          </div>
+        <label className="block text-sm font-medium text-gray-700 mb-3">
+          What's your experience level?
+        </label>
+        <div className="grid md:grid-cols-3 gap-3">
+          {EXPERIENCE_LEVELS.map((level) => (
+            <button
+              key={level.id}
+              onClick={() => setExperienceLevel(level.id)}
+              className={`p-4 rounded-lg border-2 text-center transition-all duration-200 ${
+                experienceLevel === level.id
+                  ? 'border-blue-600 bg-blue-50 shadow-md'
+                  : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'
+              }`}
+            >
+              <div className="font-semibold text-gray-900">{level.name}</div>
+              <div className="text-sm text-gray-600 mt-1">{level.description}</div>
+            </button>
+          ))}
         </div>
-      )}
+      </div>
 
       {/* Study Time */}
       <div className="mb-8">
