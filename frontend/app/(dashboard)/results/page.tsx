@@ -1,7 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useUser } from "@clerk/nextjs"
 import Link from "next/link"
+import { getUserSubscription, createCheckoutUrl, type Subscription } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -34,6 +36,8 @@ import {
   XCircle,
   MinusCircle,
   ChevronRight,
+  Crown,
+  Loader2,
 } from "lucide-react"
 
 // Mock test data (this would come from API/props in real app)
@@ -107,6 +111,48 @@ const questions = [
 ]
 
 export default function ResultsPage() {
+  const { user } = useUser()
+  const [subscription, setSubscription] = useState<Subscription | null>(null)
+  const [isLoadingSubscription, setIsLoadingSubscription] = useState(true)
+  const [isUpgrading, setIsUpgrading] = useState(false)
+
+  useEffect(() => {
+    async function loadSubscription() {
+      if (!user?.id) return
+
+      try {
+        const subscriptionData = await getUserSubscription(user.id)
+        setSubscription(subscriptionData)
+      } catch (error) {
+        console.error("Failed to load subscription:", error)
+      } finally {
+        setIsLoadingSubscription(false)
+      }
+    }
+
+    loadSubscription()
+  }, [user?.id])
+
+  const handleUpgrade = async () => {
+    if (!user?.id || !user?.primaryEmailAddress?.emailAddress) {
+      alert('Please sign in first')
+      return
+    }
+
+    setIsUpgrading(true)
+    try {
+      const checkoutUrl = await createCheckoutUrl(
+        user.id,
+        user.primaryEmailAddress.emailAddress
+      )
+      window.location.href = checkoutUrl
+    } catch (error) {
+      console.error('Checkout error:', error)
+      alert('Failed to start checkout. Please try again.')
+      setIsUpgrading(false)
+    }
+  }
+
   const isPassing = testResults.score >= testResults.passingScore
   const statusColors = {
     correct: "text-emerald-600 dark:text-emerald-400",
@@ -354,9 +400,30 @@ export default function ResultsPage() {
                             <Badge variant="default">{q.correctAnswer}</Badge>
                           </div>
                         </div>
-                        <Button variant="outline" size="sm" className="gap-2 bg-transparent">
-                          View Detailed Explanation
-                          <ChevronRight className="h-4 w-4" />
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="gap-2 bg-transparent"
+                          onClick={subscription?.is_paid ? undefined : handleUpgrade}
+                          disabled={isUpgrading || isLoadingSubscription}
+                        >
+                          {isLoadingSubscription ? (
+                            <>
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              Loading...
+                            </>
+                          ) : subscription?.is_paid ? (
+                            <>
+                              View Detailed Explanation
+                              <ChevronRight className="h-4 w-4" />
+                            </>
+                          ) : (
+                            <>
+                              <Crown className="h-4 w-4" />
+                              Upgrade to Premium to view detailed explanation
+                              <ChevronRight className="h-4 w-4" />
+                            </>
+                          )}
                         </Button>
                       </div>
                     </AccordionContent>
