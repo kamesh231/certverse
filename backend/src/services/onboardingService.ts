@@ -298,14 +298,15 @@ export async function hasCompletedOnboarding(userId: string): Promise<boolean> {
 export async function markTipShown(userId: string, tipId: string): Promise<void> {
   const { error } = await supabase
     .from('onboarding_tips_shown')
-    .insert({
+    .upsert({
       user_id: userId,
       tip_id: tipId,
       shown_at: new Date().toISOString(),
       dismissed: false,
-    })
-    .onConflict('user_id,tip_id')
-    .ignore();
+    }, {
+      onConflict: 'user_id,tip_id',
+      ignoreDuplicates: true,
+    });
 
   if (error) {
     logger.error('Error marking tip as shown:', error);
