@@ -25,4 +25,8 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Error checking onboarding status:', error);
     return NextResponse.json(
-      { error: 'Failed to check onboarding status', comple
+      { error: 'Failed to check onboarding status', completed: false },
+      { status: 500 }
+    );
+  }
+}
