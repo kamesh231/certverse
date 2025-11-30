@@ -65,15 +65,28 @@ export default function OnboardingPage() {
 
   const completeOnboarding = async () => {
     try {
-      await fetch('/api/onboarding/complete', {
+      const response = await fetch('/api/onboarding/complete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: user?.id }),
       });
 
-      router.push('/dashboard');
+      const data = await response.json();
+      
+      if (response.ok && data.success) {
+        // Set a flag in sessionStorage to indicate we just completed onboarding
+        sessionStorage.setItem('onboarding_just_completed', 'true');
+        sessionStorage.setItem('onboarding_completed_at', Date.now().toString());
+        
+        // Use replace to avoid back button issues
+        router.replace('/dashboard?onboarding_completed=true');
+      } else {
+        console.error('Failed to complete onboarding:', data);
+        alert('Failed to complete onboarding. Please try again.');
+      }
     } catch (error) {
       console.error('Error completing onboarding:', error);
+      alert('Failed to complete onboarding. Please try again.');
     }
   };
 
