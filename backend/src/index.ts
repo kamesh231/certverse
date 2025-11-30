@@ -11,6 +11,7 @@ import { rateLimiter } from './middleware/rateLimiter';
 import { errorHandler } from './middleware/errorHandler';
 import logger from './lib/logger';
 import './lib/sentry'; // Initialize Sentry
+import * as onboardingController from './api/onboarding';
 
 dotenv.config();
 
@@ -267,6 +268,20 @@ app.get('/api/stats', asyncHandler(async (req: Request, res: Response) => {
     longest_streak: 0
   });
 }));
+
+// Onboarding endpoints
+app.get('/api/onboarding/status', asyncHandler(onboardingController.getOnboardingStatus));
+app.post('/api/onboarding/start', asyncHandler(onboardingController.startOnboarding));
+app.post('/api/onboarding/goal', asyncHandler(onboardingController.saveGoal));
+app.post('/api/onboarding/confidence', asyncHandler(onboardingController.saveConfidence));
+app.get('/api/onboarding/weak-topics', asyncHandler(onboardingController.getWeakTopicsEndpoint));
+app.get('/api/onboarding/recommended-difficulty', asyncHandler(onboardingController.getRecommendedDifficultyEndpoint));
+app.post('/api/onboarding/step', asyncHandler(onboardingController.updateStep));
+app.post('/api/onboarding/complete', asyncHandler(onboardingController.finishOnboarding));
+app.get('/api/onboarding/preferences', asyncHandler(onboardingController.getPreferences));
+app.put('/api/onboarding/preferences', asyncHandler(onboardingController.updatePreferences));
+app.post('/api/onboarding/tip/shown', asyncHandler(onboardingController.markTipAsShown));
+app.get('/api/onboarding/tip/check', asyncHandler(onboardingController.checkTipShown));
 
 // Error handling
 app.use(errorHandler);
