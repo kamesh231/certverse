@@ -26,11 +26,11 @@ export default function OnboardingPage() {
 
   // Auto-redirect when reaching completed step
   useEffect(() => {
-    if (currentStep === 'completed' && !loading) {
+    if (STEPS[currentStepIndex] === 'completed' && !loading) {
       // Automatically complete onboarding and redirect to dashboard
       completeOnboarding();
     }
-  }, [currentStep, loading]);
+  }, [currentStepIndex, loading]);
 
   const checkOnboardingStatus = async () => {
     try {
