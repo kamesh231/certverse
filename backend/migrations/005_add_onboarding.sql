@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS user_onboarding (
   assessment_score INT,
   assessment_completed BOOLEAN DEFAULT false,
   weak_topics TEXT[],
-  strong_topics TEXT[]
+  strong_topics TEXT[],
 
   -- Onboarding steps completed
   steps_completed JSONB DEFAULT '[]'::jsonb,
