@@ -16,14 +16,23 @@ export default function FirstQuestionStep({ onNext }: FirstQuestionStepProps) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadQuestion();
-  }, []);
+    if (user?.id) {
+      loadQuestion();
+    }
+  }, [user]);
 
   const loadQuestion = async () => {
+    if (!user?.id) return;
+
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/question?userId=${user?.id}`);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/question?userId=${user.id}&category=cisa`);
       const data = await res.json();
-      setQuestion(data);
+
+      if (data && data.id) {
+        setQuestion(data);
+      } else {
+        console.error('No question data received:', data);
+      }
     } catch (error) {
       console.error('Error loading question:', error);
     } finally {

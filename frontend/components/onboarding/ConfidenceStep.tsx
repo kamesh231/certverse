@@ -119,7 +119,8 @@ export default function ConfidenceStep({ certification, onNext }: ConfidenceStep
   const [ratings, setRatings] = useState<{ [key: string]: number }>({});
   const [loading, setLoading] = useState(false);
 
-  const topics = TOPICS_BY_CERT[certification] || TOPICS_BY_CERT['cisa'];
+  // Always use CISA topics for now
+  const topics = TOPICS_BY_CERT['cisa'];
 
   const handleRatingChange = (topicId: string, rating: number) => {
     setRatings({ ...ratings, [topicId]: rating });
@@ -147,7 +148,7 @@ export default function ConfidenceStep({ certification, onNext }: ConfidenceStep
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId: user?.id,
-          category: certification,
+          category: 'cisa', // Always use CISA for now
           ratings,
         }),
       });
