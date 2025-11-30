@@ -7,6 +7,9 @@ const isPublicRoute = createRouteMatcher([
   "/sign-up(.*)",
 ])
 
+// Onboarding route - requires auth but skips onboarding check
+const isOnboardingRoute = createRouteMatcher(["/onboarding(.*)"])
+
 // Routes that have no authentication information
 const isIgnoredRoute = createRouteMatcher(["/api/webhook"])
 
