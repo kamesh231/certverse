@@ -379,6 +379,11 @@ export default function Home() {
                     GDPR Policy
                   </Link>
                 </li>
+                <li>
+                  <Link href="/cookies" className="hover:text-foreground">
+                    Cookie Policy
+                  </Link>
+                </li>
               </ul>
             </div>
           </div>
