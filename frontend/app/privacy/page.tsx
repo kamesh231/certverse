@@ -52,7 +52,13 @@ export default function PrivacyPolicyPage() {
             </div>
             <div>
               <h3 className="font-semibold mb-2">2.3 Cookies and Tracking</h3>
-              <p>We use cookies and similar tracking technologies to track activity on our Service and store certain information. You can instruct your browser to refuse all cookies or to indicate when a cookie is being sent.</p>
+              <p>We use cookies and similar tracking technologies to track activity on our Service and store certain information. We use the following analytics and tracking services:</p>
+              <ul className="list-disc list-inside mt-2 space-y-1 text-muted-foreground">
+                <li><strong>Google Analytics:</strong> To analyze website traffic and user behavior</li>
+                <li><strong>PostHog:</strong> For product analytics and user session recording</li>
+                <li><strong>Sentry:</strong> For error tracking and performance monitoring</li>
+              </ul>
+              <p className="mt-2">You can instruct your browser to refuse all cookies or to indicate when a cookie is being sent. You can also manage your cookie preferences through our cookie consent banner.</p>
             </div>
           </CardContent>
         </Card>
@@ -67,6 +73,7 @@ export default function PrivacyPolicyPage() {
               <li>To provide and maintain our Service</li>
               <li>To personalize your learning experience</li>
               <li>To track your progress and performance</li>
+              <li>To analyze website usage and improve our Service (via Google Analytics and PostHog)</li>
               <li>To process payments and manage subscriptions</li>
               <li>To send you notifications and updates (with your consent)</li>
               <li>To detect, prevent, and address technical issues</li>
@@ -96,10 +103,61 @@ export default function PrivacyPolicyPage() {
           <CardContent className="space-y-4">
             <p>We do not sell your personal information. We may share your information only in the following circumstances:</p>
             <ul className="list-disc list-inside space-y-1 text-muted-foreground">
-              <li><strong>Service Providers:</strong> With third-party service providers (Clerk for authentication, Polar.sh for payments, Supabase for database, Vercel/Railway for hosting)</li>
+              <li><strong>Service Providers:</strong> With third-party service providers including:
+                <ul className="list-disc list-inside ml-4 mt-1 space-y-1">
+                  <li>Clerk for authentication</li>
+                  <li>Polar.sh for payments</li>
+                  <li>Supabase for database storage</li>
+                  <li>Vercel and Railway for hosting</li>
+                  <li>Google Analytics for website analytics</li>
+                  <li>PostHog for product analytics and user behavior tracking</li>
+                  <li>Sentry for error tracking and monitoring</li>
+                </ul>
+              </li>
               <li><strong>Legal Requirements:</strong> When required by law or to protect our rights</li>
               <li><strong>Business Transfers:</strong> In connection with any merger, sale, or acquisition</li>
             </ul>
+            <p className="mt-2">
+              <strong>Analytics Services:</strong> Google Analytics and PostHog may collect information about your use of our Service, including pages visited, time spent, and interactions. This data is used to improve our Service and understand user behavior. You can opt-out of analytics tracking through our cookie consent banner.
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle>5.1 Third-Party Analytics Services</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <h3 className="font-semibold mb-2">Google Analytics</h3>
+              <p>
+                We use Google Analytics to understand how visitors interact with our website. Google Analytics collects information such as:
+              </p>
+              <ul className="list-disc list-inside mt-2 space-y-1 text-muted-foreground">
+                <li>Pages visited and time spent on pages</li>
+                <li>Device and browser information</li>
+                <li>Geographic location (country/city level)</li>
+                <li>Referral sources</li>
+              </ul>
+              <p className="mt-2">
+                Google Analytics uses cookies and may share data with Google. You can opt-out by installing the <Link href="https://tools.google.com/dlpage/gaoptout" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Google Analytics Opt-out Browser Add-on</Link> or by managing your preferences through our cookie consent banner.
+              </p>
+            </div>
+            <div>
+              <h3 className="font-semibold mb-2">PostHog</h3>
+              <p>
+                We use PostHog for product analytics and user behavior analysis. PostHog may collect:
+              </p>
+              <ul className="list-disc list-inside mt-2 space-y-1 text-muted-foreground">
+                <li>User interactions and events</li>
+                <li>Session recordings (with your consent)</li>
+                <li>Feature usage and engagement metrics</li>
+                <li>Performance data</li>
+              </ul>
+              <p className="mt-2">
+                PostHog's data processing is subject to their <Link href="https://posthog.com/privacy" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Privacy Policy</Link>. You can opt-out of PostHog tracking through our cookie consent banner.
+              </p>
+            </div>
           </CardContent>
         </Card>
 

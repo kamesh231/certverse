@@ -37,6 +37,29 @@ export default function TermsOfServicePage() {
               <li>Study modes and test simulations</li>
               <li>Progress monitoring and recommendations</li>
             </ul>
+            <p className="mt-4">
+              <strong>Analytics and Tracking:</strong> We use Google Analytics and PostHog to analyze website usage, improve our Service, and understand user behavior. By using our Service, you consent to the collection and processing of analytics data as described in our <Link href="/privacy" className="text-primary hover:underline">Privacy Policy</Link>. You can opt-out of analytics tracking through our cookie consent banner.
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle>2.1 Analytics and Tracking</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p>
+              We use third-party analytics services (Google Analytics and PostHog) to understand how users interact with our Service. These services may collect information about your use of the Service, including:
+            </p>
+            <ul className="list-disc list-inside space-y-1 text-muted-foreground">
+              <li>Pages visited and navigation patterns</li>
+              <li>Time spent on pages</li>
+              <li>User interactions and events</li>
+              <li>Device and browser information</li>
+            </ul>
+            <p>
+              This data helps us improve our Service and user experience. You can manage your analytics preferences through our cookie consent banner or by adjusting your browser settings. For more information, please see our <Link href="/privacy" className="text-primary hover:underline">Privacy Policy</Link>.
+            </p>
           </CardContent>
         </Card>
 
