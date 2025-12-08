@@ -18,6 +18,10 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Trust proxy - required when behind reverse proxy (Railway, Vercel, etc.)
+// This allows express-rate-limit to correctly identify client IPs from X-Forwarded-For header
+app.set('trust proxy', true);
+
 // Security middleware
 app.use(helmet());
 app.use(cors({
