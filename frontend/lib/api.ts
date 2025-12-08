@@ -56,12 +56,18 @@ export interface UserResponse {
 /**
  * Fetch a random question for the user
  * @param userId - User ID
+ * @param userEmail - User email (required for watermarking)
  * @param domain - Optional domain number (1-5) to filter questions
  */
-export async function fetchQuestion(userId: string, domain?: number): Promise<Question> {
+export async function fetchQuestion(
+  userId: string,
+  userEmail: string,
+  domain?: number
+): Promise<Question> {
   try {
     const url = new URL(`${API_URL}/api/question`);
     url.searchParams.set('userId', userId);
+    url.searchParams.set('userEmail', userEmail);
     if (domain !== undefined && domain >= 1 && domain <= 5) {
       url.searchParams.set('domain', domain.toString());
     }

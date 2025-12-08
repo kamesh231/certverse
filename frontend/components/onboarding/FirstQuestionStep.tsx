@@ -27,7 +27,13 @@ export default function FirstQuestionStep({ onNext }: FirstQuestionStepProps) {
     if (!user?.id) return;
 
     try {
-      const res = await fetch(`${API_URL}/api/question?userId=${user.id}&category=cisa`);
+      const userEmail = user.primaryEmailAddress?.emailAddress || '';
+      if (!userEmail) {
+        console.error('User email not available');
+        return;
+      }
+
+      const res = await fetch(`${API_URL}/api/question?userId=${user.id}&userEmail=${encodeURIComponent(userEmail)}&category=cisa`);
       const data = await res.json();
 
       if (data && data.id) {

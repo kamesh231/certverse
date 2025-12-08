@@ -8,14 +8,16 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { CheckCircle2, XCircle, Loader2 } from "lucide-react"
 import { Question, SubmitAnswerResponse } from "@/lib/api"
 import { cn } from "@/lib/utils"
+import { QuestionWatermark } from "./question-watermark"
 
 interface QuestionCardProps {
   question: Question
   onSubmit: (choice: "A" | "B" | "C" | "D") => Promise<SubmitAnswerResponse>
   onNext: () => void
+  userEmail?: string
 }
 
-export function QuestionCard({ question, onSubmit, onNext }: QuestionCardProps) {
+export function QuestionCard({ question, onSubmit, onNext, userEmail }: QuestionCardProps) {
   const [selectedChoice, setSelectedChoice] = useState<"A" | "B" | "C" | "D" | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [result, setResult] = useState<SubmitAnswerResponse | null>(null)
@@ -47,8 +49,14 @@ export function QuestionCard({ question, onSubmit, onNext }: QuestionCardProps) 
     onNext()
   }
 
+  // Get current date for watermark
+  const currentDate = new Date().toISOString().split('T')[0]
+
   return (
-    <Card className="w-full max-w-3xl mx-auto animate-fade-in">
+    <Card className="w-full max-w-3xl mx-auto animate-fade-in relative">
+      {userEmail && (
+        <QuestionWatermark email={userEmail} date={currentDate} />
+      )}
       <CardHeader>
         <div className="flex items-center justify-between mb-4">
           <Badge variant="default">Domain {question.domain}</Badge>

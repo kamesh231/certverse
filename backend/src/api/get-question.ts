@@ -1,14 +1,21 @@
 import { Request, Response } from 'express';
 import { supabase } from '../lib/supabase';
 import logger from '../lib/logger';
+import { applyWatermark, logQuestionAccess, getClientIp } from '../services/watermarkService';
 
 export async function getQuestion(req: Request, res: Response): Promise<void> {
   try {
     const userId = req.query.userId as string;
+    const userEmail = req.query.userEmail as string | undefined;
     const domain = req.query.domain as string | undefined;
 
     if (!userId) {
       res.status(400).json({ error: 'userId is required' });
+      return;
+    }
+
+    if (!userEmail) {
+      res.status(400).json({ error: 'userEmail is required for watermarking' });
       return;
     }
 
@@ -41,14 +48,32 @@ export async function getQuestion(req: Request, res: Response): Promise<void> {
 
     const randomQuestion = questions[Math.floor(Math.random() * questions.length)];
 
+    // Log question access for audit trail
+    const ipAddress = getClientIp(req);
+    await logQuestionAccess(userId, randomQuestion.id, userEmail, ipAddress);
+
+    // Apply watermark to question text and choices
+    const watermarkedQuestion = applyWatermark(
+      {
+        id: randomQuestion.id,
+        q_text: randomQuestion.q_text,
+        choice_a: randomQuestion.choice_a,
+        choice_b: randomQuestion.choice_b,
+        choice_c: randomQuestion.choice_c,
+        choice_d: randomQuestion.choice_d,
+      },
+      userId,
+      userEmail
+    );
+
     res.json({
-      id: randomQuestion.id,
+      id: watermarkedQuestion.id,
       domain: randomQuestion.domain,
-      q_text: randomQuestion.q_text,
-      choice_a: randomQuestion.choice_a,
-      choice_b: randomQuestion.choice_b,
-      choice_c: randomQuestion.choice_c,
-      choice_d: randomQuestion.choice_d,
+      q_text: watermarkedQuestion.q_text,
+      choice_a: watermarkedQuestion.choice_a,
+      choice_b: watermarkedQuestion.choice_b,
+      choice_c: watermarkedQuestion.choice_c,
+      choice_d: watermarkedQuestion.choice_d,
     });
   } catch (error) {
     logger.error('Error in getQuestion:', error);
