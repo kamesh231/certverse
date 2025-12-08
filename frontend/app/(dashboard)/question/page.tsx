@@ -9,6 +9,7 @@ import { fetchQuestion, submitAnswer, getRemainingQuestions, Question, SubmitAns
 import { Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import Link from "next/link"
 
 const domainNames: Record<number, string> = {
   1: "Information Systems Governance",
@@ -128,7 +129,13 @@ export default function QuestionPage() {
               }}
             />
           )}
-          <Button onClick={loadQuestion}>Try Again</Button>
+          {isLimitReached ? (
+            <Button asChild size="lg" className="bg-primary hover:bg-primary/90">
+              <Link href="/pricing">Upgrade to Premium</Link>
+            </Button>
+          ) : (
+            <Button onClick={loadQuestion}>Try Again</Button>
+          )}
         </div>
       </div>
     )
