@@ -31,10 +31,19 @@ export interface UserStats {
   accuracy: number;
 }
 
+export interface DomainPerformance {
+  domain: number;
+  score: number;
+  total: number;
+  correct: number;
+}
+
 export interface EnhancedUserStats extends UserStats {
   currentStreak: number;
   longestStreak: number;
   questionsToday: number;
+  domainPerformance: DomainPerformance[];
+  overallReadiness: number;
 }
 
 export interface UnlockStatus {

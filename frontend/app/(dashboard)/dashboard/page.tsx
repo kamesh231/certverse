@@ -61,14 +61,22 @@ export default function DashboardPage() {
     loadData()
   }, [user?.id])
 
-  // Calculate domain performance (mock for now - would need backend support)
-  const domainData = [
-    { domain: "Governance", score: 85, fullName: domainFullNames[1] },
-    { domain: "Risk Management", score: 78, fullName: domainFullNames[2] },
-    { domain: "Acquisition", score: 92, fullName: domainFullNames[3] },
-    { domain: "Implementation", score: 88, fullName: domainFullNames[4] },
-    { domain: "Operations", score: 81, fullName: domainFullNames[5] },
-  ]
+  // Calculate domain performance from real data
+  const domainData = stats?.domainPerformance
+    ? stats.domainPerformance.map((dp) => ({
+        domain: domainNames[dp.domain] || `Domain ${dp.domain}`,
+        score: Math.round(dp.score),
+        fullName: domainFullNames[dp.domain] || `Domain ${dp.domain}`,
+        total: dp.total,
+        correct: dp.correct,
+      }))
+    : [
+        { domain: "Governance", score: 0, fullName: domainFullNames[1], total: 0, correct: 0 },
+        { domain: "Risk Management", score: 0, fullName: domainFullNames[2], total: 0, correct: 0 },
+        { domain: "Acquisition", score: 0, fullName: domainFullNames[3], total: 0, correct: 0 },
+        { domain: "Implementation", score: 0, fullName: domainFullNames[4], total: 0, correct: 0 },
+        { domain: "Operations", score: 0, fullName: domainFullNames[5], total: 0, correct: 0 },
+      ]
 
   // Format time ago
   const timeAgo = (dateString: string) => {
@@ -106,6 +114,7 @@ export default function DashboardPage() {
 
   const userName = user?.firstName || "there"
   const accuracy = stats ? Math.round(stats.accuracy) : 0
+  const readiness = stats?.overallReadiness || 0
 
   // Stats data
   const statsCards = [
@@ -181,41 +190,56 @@ export default function DashboardPage() {
               <CardDescription>Your performance across all 5 CISA domains</CardDescription>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={320}>
-                <BarChart data={domainData}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis
-                    dataKey="domain"
-                    className="text-xs"
-                    tick={{ fill: "hsl(var(--muted-foreground))" }}
-                    angle={-15}
-                    textAnchor="end"
-                    height={60}
-                  />
-                  <YAxis
-                    className="text-xs"
-                    tick={{ fill: "hsl(var(--muted-foreground))" }}
-                    domain={[0, 100]}
-                    label={{ value: "Score %", angle: -90, position: "insideLeft" }}
-                  />
-                  <Tooltip
-                    content={({ active, payload }) => {
-                      if (active && payload && payload.length) {
-                        return (
-                          <div className="rounded-lg border bg-background p-3 shadow-lg">
-                            <p className="mb-1 font-medium">{payload[0].payload.fullName}</p>
-                            <p className="text-sm text-muted-foreground">
-                              Score: <span className="font-semibold text-foreground">{payload[0].value}%</span>
-                            </p>
-                          </div>
-                        )
-                      }
-                      return null
-                    }}
-                  />
-                  <Bar dataKey="score" fill="hsl(var(--chart-1))" radius={[8, 8, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              {domainData.some((d) => d.total > 0) ? (
+                <ResponsiveContainer width="100%" height={320}>
+                  <BarChart data={domainData}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis
+                      dataKey="domain"
+                      className="text-xs"
+                      tick={{ fill: "hsl(var(--muted-foreground))" }}
+                      angle={-15}
+                      textAnchor="end"
+                      height={60}
+                    />
+                    <YAxis
+                      className="text-xs"
+                      tick={{ fill: "hsl(var(--muted-foreground))" }}
+                      domain={[0, 100]}
+                      label={{ value: "Score %", angle: -90, position: "insideLeft" }}
+                    />
+                    <Tooltip
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          const data = payload[0].payload
+                          return (
+                            <div className="rounded-lg border bg-background p-3 shadow-lg">
+                              <p className="mb-1 font-medium">{data.fullName}</p>
+                              <p className="text-sm text-muted-foreground">
+                                Score: <span className="font-semibold text-foreground">{data.score}%</span>
+                              </p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {data.correct} correct out of {data.total} questions
+                              </p>
+                            </div>
+                          )
+                        }
+                        return null
+                      }}
+                    />
+                    <Bar dataKey="score" fill="hsl(var(--chart-1))" radius={[8, 8, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <p className="text-muted-foreground mb-4">
+                    No domain data yet. Answer questions to see your performance across domains!
+                  </p>
+                  <Button asChild>
+                    <Link href="/question">Start Practicing</Link>
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -276,18 +300,20 @@ export default function DashboardPage() {
             <div className="space-y-2">
               <div className="flex items-center justify-between text-sm">
                 <span className="font-medium">Estimated Readiness</span>
-                <span className="text-muted-foreground">{accuracy}%</span>
+                <span className="text-muted-foreground">{readiness}%</span>
               </div>
-              <Progress value={accuracy} className="h-3" />
+              <Progress value={readiness} className="h-3" />
             </div>
             <div className="flex items-center justify-between rounded-lg bg-blue-50 p-4 dark:bg-blue-900/20">
               <div>
                 <p className="font-medium text-blue-900 dark:text-blue-100">
-                  {accuracy >= 80 ? "You're almost ready!" : "Keep practicing!"}
+                  {readiness >= 80 ? "You're almost ready!" : readiness >= 60 ? "You're making progress!" : "Keep practicing!"}
                 </p>
                 <p className="text-sm text-blue-700 dark:text-blue-300">
                   {stats && stats.totalAnswered < 150
                     ? `Complete ${150 - stats.totalAnswered} more questions to reach exam readiness`
+                    : domainData.filter((d) => d.total >= 5).length < 5
+                    ? `Practice all 5 domains (at least 5 questions each) for accurate readiness assessment`
                     : "You're making great progress!"}
                 </p>
               </div>

@@ -225,6 +225,58 @@ app.get('/api/stats/enhanced', asyncHandler(async (req: Request, res: Response) 
     .gte('created_at', `${today}T00:00:00Z`)
     .lt('created_at', `${today}T23:59:59Z`);
 
+  // Calculate domain performance
+  // Join responses with questions to get domain information
+  const { data: domainResponses, error: domainError } = await supabase
+    .from('responses')
+    .select(`
+      correct,
+      questions!inner(domain)
+    `)
+    .eq('user_id', userId);
+
+  if (domainError) {
+    throw domainError;
+  }
+
+  // Calculate accuracy per domain
+  const domainStats: Record<number, { total: number; correct: number; score: number }> = {
+    1: { total: 0, correct: 0, score: 0 },
+    2: { total: 0, correct: 0, score: 0 },
+    3: { total: 0, correct: 0, score: 0 },
+    4: { total: 0, correct: 0, score: 0 },
+    5: { total: 0, correct: 0, score: 0 },
+  };
+
+  if (domainResponses) {
+    domainResponses.forEach((response: any) => {
+      const domain = response.questions?.domain;
+      if (domain >= 1 && domain <= 5) {
+        domainStats[domain].total++;
+        if (response.correct) {
+          domainStats[domain].correct++;
+        }
+      }
+    });
+
+    // Calculate scores
+    Object.keys(domainStats).forEach((domainKey) => {
+      const domain = parseInt(domainKey, 10);
+      const stats = domainStats[domain];
+      stats.score = stats.total > 0 ? (stats.correct / stats.total) * 100 : 0;
+    });
+  }
+
+  // Calculate overall readiness (weighted average of domain scores)
+  // Only count domains where user has attempted at least 5 questions
+  const domainScores = Object.values(domainStats)
+    .filter((stats) => stats.total >= 5)
+    .map((stats) => stats.score);
+
+  const overallReadiness = domainScores.length > 0
+    ? domainScores.reduce((sum, score) => sum + score, 0) / domainScores.length
+    : 0;
+
   const totalAnswered = stats?.total_questions_attempted || 0;
   const totalCorrect = stats?.correct_answers || 0;
 
@@ -234,7 +286,40 @@ app.get('/api/stats/enhanced', asyncHandler(async (req: Request, res: Response) 
     accuracy: totalAnswered > 0 ? (totalCorrect / totalAnswered) * 100 : 0,
     currentStreak: stats?.current_streak || 0,
     longestStreak: stats?.longest_streak || 0,
-    questionsToday: todayResponses?.length || 0
+    questionsToday: todayResponses?.length || 0,
+    domainPerformance: [
+      {
+        domain: 1,
+        score: domainStats[1].score,
+        total: domainStats[1].total,
+        correct: domainStats[1].correct,
+      },
+      {
+        domain: 2,
+        score: domainStats[2].score,
+        total: domainStats[2].total,
+        correct: domainStats[2].correct,
+      },
+      {
+        domain: 3,
+        score: domainStats[3].score,
+        total: domainStats[3].total,
+        correct: domainStats[3].correct,
+      },
+      {
+        domain: 4,
+        score: domainStats[4].score,
+        total: domainStats[4].total,
+        correct: domainStats[4].correct,
+      },
+      {
+        domain: 5,
+        score: domainStats[5].score,
+        total: domainStats[5].total,
+        correct: domainStats[5].correct,
+      },
+    ],
+    overallReadiness: Math.round(overallReadiness),
   });
 }));
 
