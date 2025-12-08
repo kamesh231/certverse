@@ -23,10 +23,16 @@ export async function getQuestion(req: Request, res: Response): Promise<void> {
     // Check remaining questions before fetching
     const remaining = await getRemainingQuestions(userId);
     if (remaining <= 0) {
+      // Calculate reset time (midnight tomorrow)
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(0, 0, 0, 0);
+      
       res.status(403).json({ 
         error: 'Daily question limit reached',
         message: 'You have reached your daily limit of 2 questions. Upgrade to Premium for unlimited access.',
-        remaining: 0
+        remaining: 0,
+        resetsAt: tomorrow.toISOString()
       });
       return;
     }

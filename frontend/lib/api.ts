@@ -96,6 +96,7 @@ export async function fetchQuestion(
       // Attach error details for better handling
       (limitError as any).status = response.status;
       (limitError as any).remaining = error.remaining;
+      (limitError as any).resetsAt = error.resetsAt; // Include reset time
       throw limitError;
     }
 

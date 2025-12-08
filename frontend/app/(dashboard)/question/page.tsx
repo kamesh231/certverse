@@ -4,7 +4,8 @@ import { useEffect, useState } from "react"
 import { useUser } from "@clerk/nextjs"
 import { useSearchParams } from "next/navigation"
 import { QuestionCard } from "@/components/question-card"
-import { fetchQuestion, submitAnswer, Question, SubmitAnswerResponse } from "@/lib/api"
+import { CountdownTimer } from "@/components/countdown-timer"
+import { fetchQuestion, submitAnswer, getRemainingQuestions, Question, SubmitAnswerResponse } from "@/lib/api"
 import { Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -26,6 +27,8 @@ export default function QuestionPage() {
   const [question, setQuestion] = useState<Question | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [resetsAt, setResetsAt] = useState<string | null>(null)
+  const [isLimitReached, setIsLimitReached] = useState(false)
 
   const loadQuestion = async () => {
     if (!user?.id || !user?.primaryEmailAddress?.emailAddress) {
@@ -36,6 +39,8 @@ export default function QuestionPage() {
 
     setIsLoading(true)
     setError(null)
+    setIsLimitReached(false)
+    setResetsAt(null)
 
     try {
       const userEmail = user.primaryEmailAddress.emailAddress
@@ -51,6 +56,27 @@ export default function QuestionPage() {
       // Use the error message from backend (includes limit messages)
       const errorMessage = err?.message || "Failed to load question. Please try again."
       setError(errorMessage)
+      
+      // Check if it's a limit error and fetch reset time
+      if (err?.status === 403 || errorMessage.includes('daily limit')) {
+        setIsLimitReached(true)
+        // Try to get resetsAt from error response first
+        if (err?.resetsAt) {
+          setResetsAt(err.resetsAt)
+        } else {
+          // Fetch unlock status to get resetsAt
+          try {
+            const unlockStatus = await getRemainingQuestions(user.id)
+            setResetsAt(unlockStatus.resetsAt)
+          } catch (unlockErr) {
+            // Calculate default reset time (midnight tomorrow)
+            const tomorrow = new Date()
+            tomorrow.setDate(tomorrow.getDate() + 1)
+            tomorrow.setHours(0, 0, 0, 0)
+            setResetsAt(tomorrow.toISOString())
+          }
+        }
+      }
     } finally {
       setIsLoading(false)
     }
@@ -91,6 +117,17 @@ export default function QuestionPage() {
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="flex flex-col items-center gap-4 max-w-md text-center">
           <p className="text-destructive">{error}</p>
+          {isLimitReached && resetsAt && (
+            <CountdownTimer 
+              targetDate={resetsAt} 
+              onComplete={() => {
+                // Reload question when timer completes
+                setError(null)
+                setIsLimitReached(false)
+                loadQuestion()
+              }}
+            />
+          )}
           <Button onClick={loadQuestion}>Try Again</Button>
         </div>
       </div>
