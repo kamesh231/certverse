@@ -32,6 +32,48 @@ import {
   Loader2,
 } from "lucide-react"
 
+// Comprehensive timezone list
+const TIMEZONES = [
+  { value: "America/New_York", label: "Eastern Time (ET)" },
+  { value: "America/Chicago", label: "Central Time (CT)" },
+  { value: "America/Denver", label: "Mountain Time (MT)" },
+  { value: "America/Los_Angeles", label: "Pacific Time (PT)" },
+  { value: "America/Anchorage", label: "Alaska Time (AKT)" },
+  { value: "Pacific/Honolulu", label: "Hawaii Time (HST)" },
+  { value: "America/Toronto", label: "Toronto (ET)" },
+  { value: "America/Vancouver", label: "Vancouver (PT)" },
+  { value: "America/Mexico_City", label: "Mexico City (CST)" },
+  { value: "America/Sao_Paulo", label: "São Paulo (BRT)" },
+  { value: "Europe/London", label: "London (GMT)" },
+  { value: "Europe/Paris", label: "Paris (CET)" },
+  { value: "Europe/Berlin", label: "Berlin (CET)" },
+  { value: "Europe/Rome", label: "Rome (CET)" },
+  { value: "Europe/Madrid", label: "Madrid (CET)" },
+  { value: "Europe/Amsterdam", label: "Amsterdam (CET)" },
+  { value: "Europe/Stockholm", label: "Stockholm (CET)" },
+  { value: "Europe/Zurich", label: "Zurich (CET)" },
+  { value: "Europe/Dublin", label: "Dublin (GMT)" },
+  { value: "Europe/Athens", label: "Athens (EET)" },
+  { value: "Europe/Moscow", label: "Moscow (MSK)" },
+  { value: "Asia/Dubai", label: "Dubai (GST)" },
+  { value: "Asia/Kolkata", label: "Mumbai/New Delhi (IST)" },
+  { value: "Asia/Singapore", label: "Singapore (SGT)" },
+  { value: "Asia/Hong_Kong", label: "Hong Kong (HKT)" },
+  { value: "Asia/Tokyo", label: "Tokyo (JST)" },
+  { value: "Asia/Seoul", label: "Seoul (KST)" },
+  { value: "Asia/Shanghai", label: "Shanghai (CST)" },
+  { value: "Asia/Bangkok", label: "Bangkok (ICT)" },
+  { value: "Asia/Jakarta", label: "Jakarta (WIB)" },
+  { value: "Australia/Sydney", label: "Sydney (AEDT)" },
+  { value: "Australia/Melbourne", label: "Melbourne (AEDT)" },
+  { value: "Australia/Brisbane", label: "Brisbane (AEST)" },
+  { value: "Australia/Perth", label: "Perth (AWST)" },
+  { value: "Pacific/Auckland", label: "Auckland (NZDT)" },
+  { value: "Africa/Johannesburg", label: "Johannesburg (SAST)" },
+  { value: "Africa/Cairo", label: "Cairo (EET)" },
+  { value: "Africa/Lagos", label: "Lagos (WAT)" },
+]
+
 export default function SettingsPage() {
   const { user } = useUser()
   const [theme, setTheme] = useState("system")
@@ -41,6 +83,16 @@ export default function SettingsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [subscription, setSubscription] = useState<Subscription | null>(null)
   const [isUpgrading, setIsUpgrading] = useState(false)
+  
+  // Profile state
+  const [fullName, setFullName] = useState("")
+  const [originalFullName, setOriginalFullName] = useState("")
+  const [timezone, setTimezone] = useState("America/New_York")
+  const [originalTimezone, setOriginalTimezone] = useState("America/New_York")
+  const [isSaving, setIsSaving] = useState(false)
+  const [hasChanges, setHasChanges] = useState(false)
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
 
   useEffect(() => {
     async function loadData() {
@@ -62,6 +114,130 @@ export default function SettingsPage() {
 
     loadData()
   }, [user?.id])
+
+  // Initialize profile data
+  useEffect(() => {
+    if (user) {
+      const name = user.fullName || ""
+      setFullName(name)
+      setOriginalFullName(name)
+      // Load timezone from backend preferences
+      loadTimezone()
+    }
+  }, [user])
+
+  const loadTimezone = async () => {
+    if (!user?.id) return
+    try {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+      const response = await fetch(`${API_URL}/api/onboarding/preferences?userId=${user.id}`)
+      const data = await response.json()
+      const tz = data?.timezone || "America/New_York"
+      setTimezone(tz)
+      setOriginalTimezone(tz)
+    } catch (error) {
+      console.error("Failed to load timezone:", error)
+    }
+  }
+
+  const handleNameChange = (value: string) => {
+    setFullName(value)
+    checkForChanges(value, timezone, imageFile)
+  }
+
+  const handleTimezoneChange = (value: string) => {
+    setTimezone(value)
+    checkForChanges(fullName, value, imageFile)
+  }
+
+  const checkForChanges = (name: string, tz: string, image: File | null) => {
+    const nameChanged = name !== originalFullName
+    const timezoneChanged = tz !== originalTimezone
+    const imageChanged = image !== null
+    setHasChanges(nameChanged || timezoneChanged || imageChanged)
+  }
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      // Validate file size (2MB max)
+      if (file.size > 2 * 1024 * 1024) {
+        alert("Image size must be less than 2MB")
+        return
+      }
+      // Validate file type
+      if (!file.type.match(/^image\/(jpeg|jpg|png|gif)$/)) {
+        alert("Please upload a JPG, PNG, or GIF image")
+        return
+      }
+      setImageFile(file)
+      // Create preview
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string)
+        // Check for changes after preview is set
+        checkForChanges(fullName, timezone, file)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const handleSave = async () => {
+    if (!user) return
+
+    setIsSaving(true)
+    try {
+      // Update name via Clerk
+      if (fullName !== (user.fullName || "")) {
+        const nameParts = fullName.trim().split(/\s+/)
+        await user.update({
+          firstName: nameParts[0] || fullName,
+          lastName: nameParts.slice(1).join(" ") || "",
+        })
+      }
+
+      // Update image via Clerk if changed
+      if (imageFile) {
+        await user.setProfileImage({ file: imageFile })
+      }
+
+      // Update timezone in backend
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+      const response = await fetch(`${API_URL}/api/onboarding/preferences`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          timezone: timezone,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to update timezone')
+      }
+
+      // Update original values after successful save
+      setOriginalFullName(fullName)
+      setOriginalTimezone(timezone)
+      setHasChanges(false)
+      setImageFile(null)
+      setImagePreview(null)
+      alert("Profile updated successfully!")
+    } catch (error) {
+      console.error("Failed to save profile:", error)
+      alert("Failed to save changes. Please try again.")
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleCancel = () => {
+    setFullName(originalFullName)
+    setTimezone(originalTimezone)
+    setImageFile(null)
+    setImagePreview(null)
+    setHasChanges(false)
+  }
 
   const handleUpgrade = async () => {
     if (!user?.id || !user?.primaryEmailAddress?.emailAddress) {
@@ -175,11 +351,23 @@ export default function SettingsPage() {
               <CardContent className="space-y-6">
                 <div className="flex items-center gap-6">
                   <Avatar className="h-24 w-24">
-                    <AvatarImage src={user?.imageUrl} />
+                    <AvatarImage src={imagePreview || user?.imageUrl} />
                     <AvatarFallback className="text-2xl">{userInitials}</AvatarFallback>
                   </Avatar>
                   <div className="space-y-2">
-                    <Button variant="outline" size="sm" className="gap-2 bg-transparent">
+                    <input
+                      type="file"
+                      id="image-upload"
+                      accept="image/jpeg,image/jpg,image/png,image/gif"
+                      onChange={handleImageChange}
+                      className="hidden"
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-2 bg-transparent"
+                      onClick={() => document.getElementById('image-upload')?.click()}
+                    >
                       <Upload className="h-4 w-4" />
                       Upload Photo
                     </Button>
@@ -190,7 +378,11 @@ export default function SettingsPage() {
                 <div className="grid gap-6 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="name">Full Name</Label>
-                    <Input id="name" defaultValue={userName} />
+                    <Input
+                      id="name"
+                      value={fullName}
+                      onChange={(e) => handleNameChange(e.target.value)}
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="email">Email Address</Label>
@@ -208,24 +400,42 @@ export default function SettingsPage() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="timezone">Timezone</Label>
-                    <Select defaultValue="est">
+                    <Select value={timezone} onValueChange={handleTimezoneChange}>
                       <SelectTrigger id="timezone">
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="est">Eastern Time (ET)</SelectItem>
-                        <SelectItem value="cst">Central Time (CT)</SelectItem>
-                        <SelectItem value="mst">Mountain Time (MT)</SelectItem>
-                        <SelectItem value="pst">Pacific Time (PT)</SelectItem>
+                      <SelectContent className="max-h-[300px]">
+                        {TIMEZONES.map((tz) => (
+                          <SelectItem key={tz.value} value={tz.value}>
+                            {tz.label}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
 
                 <div className="flex justify-end gap-2">
-                  <Button variant="outline">Cancel</Button>
-                  <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
-                    Save Changes
+                  <Button
+                    variant="outline"
+                    onClick={handleCancel}
+                    disabled={isSaving || !hasChanges}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                    onClick={handleSave}
+                    disabled={isSaving || !hasChanges}
+                  >
+                    {isSaving ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      "Save Changes"
+                    )}
                   </Button>
                 </div>
               </CardContent>
