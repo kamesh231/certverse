@@ -1,3 +1,8 @@
+"use client"
+
+import { useEffect } from "react"
+import { useUser } from "@clerk/nextjs"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardDescription, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card"
@@ -6,6 +11,30 @@ import { Brain, MessageSquare, TrendingUp, ArrowRight, Check, Sparkles } from "l
 import { Navbar } from "@/components/navbar"
 
 export default function Home() {
+  const { user, isLoaded } = useUser()
+  const router = useRouter()
+
+  useEffect(() => {
+    if (isLoaded && user) {
+      // User is authenticated, redirect to dashboard
+      router.push('/dashboard')
+    }
+  }, [user, isLoaded, router])
+
+  // Show loading state while checking authentication
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    )
+  }
+
+  // If user is authenticated, don't render landing page (redirect will happen)
+  if (user) {
+    return null
+  }
+
   return (
     <div className="min-h-screen">
       <Navbar />
@@ -336,8 +365,18 @@ export default function Home() {
                   </Link>
                 </li>
                 <li>
-                  <Link href="#" className="hover:text-foreground">
-                    Privacy
+                  <Link href="/privacy" className="hover:text-foreground">
+                    Privacy Policy
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/terms" className="hover:text-foreground">
+                    Terms of Service
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/gdpr" className="hover:text-foreground">
+                    GDPR Policy
                   </Link>
                 </li>
               </ul>
