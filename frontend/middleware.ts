@@ -5,6 +5,9 @@ const isPublicRoute = createRouteMatcher([
   "/",
   "/sign-in(.*)",
   "/sign-up(.*)",
+  "/privacy(.*)",
+  "/terms(.*)",
+  "/gdpr(.*)",
 ])
 
 // Onboarding route - requires auth but skips onboarding check
