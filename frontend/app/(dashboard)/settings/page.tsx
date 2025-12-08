@@ -35,8 +35,8 @@ import {
 export default function SettingsPage() {
   const { user } = useUser()
   const [theme, setTheme] = useState("system")
-  const [emailNotifications, setEmailNotifications] = useState(true)
-  const [studyReminders, setStudyReminders] = useState(true)
+  const [emailNotifications, setEmailNotifications] = useState(false)
+  const [studyReminders, setStudyReminders] = useState(false)
   const [stats, setStats] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [subscription, setSubscription] = useState<Subscription | null>(null)
@@ -283,13 +283,14 @@ export default function SettingsPage() {
                     <div className="flex items-center gap-2">
                       <Bell className="h-4 w-4 text-muted-foreground" />
                       <Label htmlFor="email-notifications">Email Notifications</Label>
+                      <Badge variant="secondary" className="ml-2">Coming Soon</Badge>
                     </div>
                     <p className="text-sm text-muted-foreground">Receive email updates about your progress</p>
                   </div>
                   <Switch
                     id="email-notifications"
                     checked={emailNotifications}
-                    onCheckedChange={setEmailNotifications}
+                    disabled
                   />
                 </div>
 
@@ -298,29 +299,12 @@ export default function SettingsPage() {
                     <div className="flex items-center gap-2">
                       <Clock className="h-4 w-4 text-muted-foreground" />
                       <Label htmlFor="study-reminders">Study Reminders</Label>
+                      <Badge variant="secondary" className="ml-2">Coming Soon</Badge>
                     </div>
                     <p className="text-sm text-muted-foreground">Get daily reminders to maintain your streak</p>
                   </div>
-                  <Switch id="study-reminders" checked={studyReminders} onCheckedChange={setStudyReminders} />
+                  <Switch id="study-reminders" checked={studyReminders} disabled />
                 </div>
-
-                {studyReminders && (
-                  <div className="rounded-lg border bg-muted/50 p-4 space-y-3">
-                    <Label>Reminder Time</Label>
-                    <Select defaultValue="9am">
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="6am">6:00 AM</SelectItem>
-                        <SelectItem value="9am">9:00 AM</SelectItem>
-                        <SelectItem value="12pm">12:00 PM</SelectItem>
-                        <SelectItem value="6pm">6:00 PM</SelectItem>
-                        <SelectItem value="9pm">9:00 PM</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
 
                 <div className="flex justify-end">
                   <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
