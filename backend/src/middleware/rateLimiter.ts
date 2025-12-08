@@ -6,4 +6,8 @@ export const rateLimiter = rateLimit({
   message: 'Too many requests from this IP, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
+  // Skip trust proxy validation since we're behind Railway's reverse proxy
+  validate: {
+    trustProxy: false,
+  },
 });

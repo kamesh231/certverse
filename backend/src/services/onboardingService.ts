@@ -31,6 +31,7 @@ export interface UserPreferences {
   dark_mode: boolean;
   focus_areas?: string[];
   skip_known_topics: boolean;
+  timezone?: string;
 }
 
 // Get or create onboarding state for user
@@ -249,6 +250,7 @@ async function createDefaultPreferences(userId: string): Promise<UserPreferences
       show_timer: false,
       dark_mode: false,
       skip_known_topics: false,
+      timezone: 'America/New_York',
     })
     .select()
     .single();
