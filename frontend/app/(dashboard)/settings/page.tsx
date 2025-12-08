@@ -16,7 +16,6 @@ import { getUserStats, getUserSubscription, createCheckoutUrl, getCustomerPortal
 import {
   User,
   Settings,
-  BarChart3,
   CreditCard,
   Upload,
   Bell,
@@ -151,7 +150,7 @@ export default function SettingsPage() {
         </div>
 
         <Tabs defaultValue="profile" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 lg:w-auto lg:grid-cols-4">
+          <TabsList className="grid w-full grid-cols-2 lg:w-auto lg:grid-cols-3">
             <TabsTrigger value="profile" className="gap-2">
               <User className="h-4 w-4" />
               Profile
@@ -159,10 +158,6 @@ export default function SettingsPage() {
             <TabsTrigger value="preferences" className="gap-2">
               <Settings className="h-4 w-4" />
               Preferences
-            </TabsTrigger>
-            <TabsTrigger value="stats" className="gap-2">
-              <BarChart3 className="h-4 w-4" />
-              Stats
             </TabsTrigger>
             <TabsTrigger value="subscription" className="gap-2">
               <CreditCard className="h-4 w-4" />
@@ -331,103 +326,6 @@ export default function SettingsPage() {
                   <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
                     Save Preferences
                   </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Stats Tab */}
-          <TabsContent value="stats" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Lifetime Statistics</CardTitle>
-                <CardDescription>Your overall performance and progress</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {isLoading ? (
-                  <div className="flex justify-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                  </div>
-                ) : (
-                  <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-                    <div className="space-y-2">
-                      <p className="text-sm text-muted-foreground">Total Questions</p>
-                      <p className="text-3xl font-bold">{stats?.totalAnswered?.toLocaleString() || 0}</p>
-                    </div>
-                    <div className="space-y-2">
-                      <p className="text-sm text-muted-foreground">Overall Accuracy</p>
-                      <p className="text-3xl font-bold">{Math.round(stats?.accuracy || 0)}%</p>
-                    </div>
-                    <div className="space-y-2">
-                      <p className="text-sm text-muted-foreground">Correct Answers</p>
-                      <p className="text-3xl font-bold">{stats?.totalCorrect?.toLocaleString() || 0}</p>
-                    </div>
-                    <div className="space-y-2">
-                      <p className="text-sm text-muted-foreground">Total Study Time</p>
-                      <p className="text-3xl font-bold">Coming Soon</p>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Achievements</CardTitle>
-                <CardDescription>Badges and milestones you've earned</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {achievements.map((achievement) => {
-                    const Icon = achievement.icon
-                    return (
-                      <div
-                        key={achievement.id}
-                        className={`flex items-center gap-4 rounded-lg border p-4 ${
-                          achievement.earned
-                            ? "bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20"
-                            : "bg-muted/30 opacity-60"
-                        }`}
-                      >
-                        <div
-                          className={`flex h-12 w-12 items-center justify-center rounded-lg ${
-                            achievement.earned
-                              ? "bg-gradient-to-br from-blue-600 to-indigo-600 text-white"
-                              : "bg-muted text-muted-foreground"
-                          }`}
-                        >
-                          <Icon className="h-6 w-6" />
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <h4 className="font-semibold">{achievement.name}</h4>
-                            {achievement.earned && <CheckCircle2 className="h-4 w-4 text-green-600" />}
-                          </div>
-                          <p className="text-sm text-muted-foreground">{achievement.description}</p>
-                          {achievement.earned && achievement.date && (
-                            <p className="mt-1 text-xs text-muted-foreground">Earned on {achievement.date}</p>
-                          )}
-                        </div>
-                        {!achievement.earned && <Badge variant="outline">Locked</Badge>}
-                      </div>
-                    )
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Progress to Next Achievement</CardTitle>
-                <CardDescription>Keep going to unlock your next badge</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Marathon Runner</span>
-                    <span className="font-semibold">{stats?.totalAnswered || 0} / 1,000 questions</span>
-                  </div>
-                  <Progress value={Math.min(((stats?.totalAnswered || 0) / 1000) * 100, 100)} className="h-2" />
                 </div>
               </CardContent>
             </Card>
