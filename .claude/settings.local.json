@@ -1,0 +1,40 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(chmod:*)",
+      "Bash(tree:*)",
+      "Bash(lsof:*)",
+      "Bash(cat:*)",
+      "Bash(npm run dev:*)",
+      "Bash(npm install:*)",
+      "Bash(curl:*)",
+      "Bash(git init:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(gh:*)",
+      "Bash(railway --version:*)",
+      "Bash(vercel --version:*)",
+      "Bash(git push:*)",
+      "Bash(npx tsx:*)",
+      "Bash(timeout 10 npx tsx:*)",
+      "Bash(supabase db execute:*)",
+      "Bash(npx tsc:*)",
+      "Bash(find:*)",
+      "Bash(ls:*)",
+      "Bash(grep:*)",
+      "Bash(node --version:*)",
+      "Bash(npm --version:*)",
+      "Bash(GIT_DIR=/Users/kamesh/Documents/SideProjects/certverse/.git git log:*)",
+      "Bash(xargs kill:*)",
+      "Bash(pkill:*)",
+      "Bash(xargs cat:*)",
+      "Bash(node -e:*)",
+      "WebSearch",
+      "Bash(npx supabase:*)",
+      "Bash(git reset:*)",
+      "Bash(timeout 30 npx tsx:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
