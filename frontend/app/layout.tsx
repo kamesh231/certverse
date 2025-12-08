@@ -11,6 +11,12 @@ const inter = Inter({ subsets: ["latin"] })
 export const metadata: Metadata = {
   title: "Certverse - Master CISA. Pass with confidence.",
   description: "CISA exam preparation platform with AI-powered explanations",
+  icons: {
+    icon: [
+      { url: '/icon.svg', type: 'image/svg+xml' },
+      { url: '/favicon.ico', type: 'image/x-icon' },
+    ],
+  },
 }
 
 export default function RootLayout({

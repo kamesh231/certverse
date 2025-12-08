@@ -129,8 +129,7 @@ export default function SettingsPage() {
   const loadTimezone = async () => {
     if (!user?.id) return
     try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
-      const response = await fetch(`${API_URL}/api/onboarding/preferences?userId=${user.id}`)
+      const response = await fetch(`/api/onboarding/preferences?userId=${user.id}`)
       const data = await response.json()
       const tz = data?.timezone || "America/New_York"
       setTimezone(tz)
@@ -202,8 +201,7 @@ export default function SettingsPage() {
       }
 
       // Update timezone in backend
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
-      const response = await fetch(`${API_URL}/api/onboarding/preferences`, {
+      const response = await fetch(`/api/onboarding/preferences`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
