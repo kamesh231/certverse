@@ -6,9 +6,7 @@ import { useRouter } from 'next/navigation';
 import WelcomeStep from '@/components/onboarding/WelcomeStep';
 import GoalStep from '@/components/onboarding/GoalStep';
 import ConfidenceStep from '@/components/onboarding/ConfidenceStep';
-import FirstQuestionStep from '@/components/onboarding/FirstQuestionStep';
 
-// Temporarily skip first_question step until CISA questions are added
 const STEPS = ['welcome', 'goal', 'confidence', 'completed'];
 
 export default function OnboardingPage() {
@@ -126,9 +124,6 @@ export default function OnboardingPage() {
               certification={goalData?.certification}
               onNext={handleNext}
             />
-          )}
-          {currentStep === 'first_question' && (
-            <FirstQuestionStep onNext={completeOnboarding} />
           )}
           {currentStep === 'completed' && (
             <div className="bg-white rounded-2xl shadow-xl p-8 md:p-12 text-center">
