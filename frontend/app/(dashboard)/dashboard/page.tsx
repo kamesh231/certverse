@@ -13,11 +13,11 @@ import { getEnhancedUserStats, getUserHistory, EnhancedUserStats, UserResponse }
 
 // CISA Domain mapping
 const domainNames: Record<number, string> = {
-  1: "Governance",
-  2: "Risk Management",
-  3: "Acquisition",
-  4: "Implementation",
-  5: "Operations",
+  1: "Information Systems Governance",
+  2: "IT Risk Management",
+  3: "Information Systems Acquisition",
+  4: "Information Systems Implementation",
+  5: "Information Systems Operations",
 }
 
 const domainFullNames: Record<number, string> = {
