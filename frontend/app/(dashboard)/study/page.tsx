@@ -3,9 +3,15 @@
 import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import Link from "next/link"
-import { BookOpen, Clock, Target, ArrowLeft, CheckCircle2 } from "lucide-react"
+import { BookOpen, Clock, Target, ArrowLeft, RotateCcw } from "lucide-react"
 
 const domainNames: Record<number, string> = {
   1: "Information Systems Governance",
@@ -24,7 +30,7 @@ const domainShortNames: Record<number, string> = {
 }
 
 export default function StudyPage() {
-  const [selectedDomain, setSelectedDomain] = useState<number | null>(null)
+  const [selectedDomain, setSelectedDomain] = useState<string>("all")
 
   return (
     <div className="min-h-screen bg-background">
@@ -42,84 +48,84 @@ export default function StudyPage() {
           </p>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-6 md:grid-cols-2">
+          {/* Study Mode */}
           <Card>
             <CardHeader>
               <BookOpen className="h-8 w-8 text-blue-500 mb-2" />
-              <CardTitle>Practice Mode</CardTitle>
+              <CardTitle>Study Mode</CardTitle>
               <CardDescription>
-                Practice questions at your own pace from all domains
+                Learn and review questions at your own pace
               </CardDescription>
             </CardHeader>
             <CardContent>
               <Button asChild className="w-full">
-                <Link href="/question">Start Practicing</Link>
+                <Link href="/question">Start Studying</Link>
               </Button>
             </CardContent>
           </Card>
 
+          {/* Practice Mode with Domain Dropdown */}
           <Card>
             <CardHeader>
               <Target className="h-8 w-8 text-indigo-500 mb-2" />
-              <CardTitle>Domain Focus</CardTitle>
+              <CardTitle>Practice Mode</CardTitle>
               <CardDescription>
-                Focus on specific CISA domains
+                Practice questions from specific domains
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {selectedDomain ? (
-                <div className="space-y-3">
-                  <div className="p-3 bg-indigo-50 dark:bg-indigo-950/30 rounded-lg border-2 border-indigo-500">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-semibold text-sm">Selected Domain</p>
-                        <p className="text-xs text-muted-foreground">{domainNames[selectedDomain]}</p>
-                      </div>
-                      <CheckCircle2 className="h-5 w-5 text-indigo-600" />
-                    </div>
-                  </div>
-                  <Button asChild className="w-full">
-                    <Link href={`/question?domain=${selectedDomain}`}>
-                      Start Practicing Domain {selectedDomain}
-                    </Link>
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    className="w-full"
-                    onClick={() => setSelectedDomain(null)}
-                  >
-                    Change Domain
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <p className="text-sm font-medium mb-3">Select a domain:</p>
-                  <div className="grid grid-cols-1 gap-2">
-                    {[1, 2, 3, 4, 5].map((domain) => (
-                      <Button
-                        key={domain}
-                        variant="outline"
-                        className="w-full justify-start"
-                        onClick={() => setSelectedDomain(domain)}
-                      >
-                        <Badge variant="secondary" className="mr-2">
-                          {domain}
-                        </Badge>
-                        {domainShortNames[domain]}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-              )}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Select Domain:</label>
+                <Select value={selectedDomain} onValueChange={setSelectedDomain}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Domains" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Domains</SelectItem>
+                    <SelectItem value="1">Domain 1: {domainShortNames[1]}</SelectItem>
+                    <SelectItem value="2">Domain 2: {domainShortNames[2]}</SelectItem>
+                    <SelectItem value="3">Domain 3: {domainShortNames[3]}</SelectItem>
+                    <SelectItem value="4">Domain 4: {domainShortNames[4]}</SelectItem>
+                    <SelectItem value="5">Domain 5: {domainShortNames[5]}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button 
+                asChild 
+                className="w-full"
+                disabled={!selectedDomain}
+              >
+                <Link href={selectedDomain === "all" ? "/question" : `/question?domain=${selectedDomain}`}>
+                  Start Practicing
+                </Link>
+              </Button>
             </CardContent>
           </Card>
 
-          <Card className="opacity-60">
+          {/* Test Mode */}
+          <Card>
             <CardHeader>
               <Clock className="h-8 w-8 text-purple-500 mb-2" />
-              <CardTitle>Timed Test</CardTitle>
+              <CardTitle>Test Mode</CardTitle>
               <CardDescription>
                 Simulate the full CISA exam experience
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button disabled className="w-full" variant="outline">
+                Coming Soon
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Revise Mode */}
+          <Card>
+            <CardHeader>
+              <RotateCcw className="h-8 w-8 text-green-500 mb-2" />
+              <CardTitle>Revise</CardTitle>
+              <CardDescription>
+                Review your incorrect answers and improve
               </CardDescription>
             </CardHeader>
             <CardContent>
