@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { supabase } from '../lib/supabase';
 import logger from '../lib/logger';
 import { applyWatermark, logQuestionAccess, getClientIp } from '../services/watermarkService';
+import { getRemainingQuestions } from '../services/unlockService';
 
 export async function getQuestion(req: Request, res: Response): Promise<void> {
   try {
@@ -16,6 +17,17 @@ export async function getQuestion(req: Request, res: Response): Promise<void> {
 
     if (!userEmail) {
       res.status(400).json({ error: 'userEmail is required for watermarking' });
+      return;
+    }
+
+    // Check remaining questions before fetching
+    const remaining = await getRemainingQuestions(userId);
+    if (remaining <= 0) {
+      res.status(403).json({ 
+        error: 'Daily question limit reached',
+        message: 'You have reached your daily limit of 2 questions. Upgrade to Premium for unlimited access.',
+        remaining: 0
+      });
       return;
     }
 

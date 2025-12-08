@@ -46,9 +46,11 @@ export default function QuestionPage() {
       
       const newQuestion = await fetchQuestion(user.id, userEmail, domain)
       setQuestion(newQuestion)
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to load question:", err)
-      setError("Failed to load question. Please try again.")
+      // Use the error message from backend (includes limit messages)
+      const errorMessage = err?.message || "Failed to load question. Please try again."
+      setError(errorMessage)
     } finally {
       setIsLoading(false)
     }

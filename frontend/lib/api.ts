@@ -90,7 +90,13 @@ export async function fetchQuestion(
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.error || 'Failed to fetch question');
+      // Preserve the detailed message for limit errors
+      const errorMessage = error.message || error.error || 'Failed to fetch question';
+      const limitError = new Error(errorMessage);
+      // Attach error details for better handling
+      (limitError as any).status = response.status;
+      (limitError as any).remaining = error.remaining;
+      throw limitError;
     }
 
     return response.json();
