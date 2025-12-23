@@ -62,7 +62,7 @@ export default function FirstQuestionStep({ onNext }: FirstQuestionStepProps) {
   };
 
   const handleAnswer = async (option: string) => {
-    if (answered || !question) return;
+    if (answered || !question || !user?.id) return;
 
     setSelectedOption(option);
 
