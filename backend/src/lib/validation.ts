@@ -8,7 +8,7 @@ import { z } from 'zod';
 export const submitAnswerSchema = z.object({
   questionId: z.string().uuid('Invalid question ID format'),
   selectedChoice: z.enum(['A', 'B', 'C', 'D'], {
-    errorMap: () => ({ message: 'Choice must be A, B, C, or D' }),
+    message: 'Choice must be A, B, C, or D',
   }),
   selectedAnswer: z.enum(['A', 'B', 'C', 'D']).optional(), // Support both field names
   selectedOption: z.enum(['A', 'B', 'C', 'D']).optional(), // Support alternative field name

@@ -17,7 +17,7 @@ export function validateRequest(
       const result = schema.safeParse(data);
 
       if (!result.success) {
-        const errors = result.error.errors.map((err) => ({
+        const errors = result.error.issues.map((err) => ({
           path: err.path.join('.'),
           message: err.message,
         }));
