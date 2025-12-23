@@ -230,9 +230,6 @@ export default function QuestionPage() {
           <CardHeader>
             <div className="flex items-center justify-between mb-4">
               <Badge variant="default">Domain {question.domain}</Badge>
-              {question.difficulty && (
-                <Badge variant="outline">{question.difficulty}</Badge>
-              )}
             </div>
             <CardTitle className="text-xl leading-relaxed">
               {question.q_text}
