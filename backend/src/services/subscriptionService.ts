@@ -241,10 +241,12 @@ export async function createCheckout(userId: string, userEmail: string): Promise
     logger.info(`User ${userId} is eligible for trial`);
   }
 
-  // Build checkout URL with metadata and email as query parameters
+  // Build checkout URL with metadata, email, and success redirect
+  const frontendUrl = process.env.FRONTEND_URL || 'https://certverse.vercel.app';
   const params = new URLSearchParams({
     'customer_email': userEmail,
     'metadata[user_id]': userId,
+    'success_url': `${frontendUrl}/settings?upgraded=true`,
   });
 
   const checkoutUrl = `${apiBase}/v1/checkout-links/${checkoutLinkId}/redirect?${params.toString()}`;
