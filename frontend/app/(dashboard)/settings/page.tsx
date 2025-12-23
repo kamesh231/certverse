@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useUser } from "@clerk/nextjs"
+import { useUser, useAuth } from "@clerk/nextjs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -76,6 +76,7 @@ const TIMEZONES = [
 
 export default function SettingsPage() {
   const { user } = useUser()
+  const { getToken } = useAuth()
   const [theme, setTheme] = useState("system")
   const [emailNotifications, setEmailNotifications] = useState(false)
   const [studyReminders, setStudyReminders] = useState(false)
@@ -99,9 +100,10 @@ export default function SettingsPage() {
       if (!user?.id) return
 
       try {
+        const token = await getToken()
         const [statsData, subscriptionData] = await Promise.all([
-          getUserStats(user.id),
-          getUserSubscription(user.id)
+          getUserStats(user.id, token),
+          getUserSubscription(user.id, token)
         ])
         setStats(statsData)
         setSubscription(subscriptionData)
@@ -245,9 +247,11 @@ export default function SettingsPage() {
 
     setIsUpgrading(true)
     try {
+      const token = await getToken()
       const checkoutUrl = await createCheckoutUrl(
         user.id,
-        user.primaryEmailAddress.emailAddress
+        user.primaryEmailAddress.emailAddress,
+        token
       )
       window.location.href = checkoutUrl
     } catch (error) {
@@ -640,7 +644,8 @@ export default function SettingsPage() {
                           onClick={async () => {
                             try {
                               if (!user?.id) return;
-                              const portalUrl = await getCustomerPortalUrl(user.id);
+                              const token = await getToken()
+                              const portalUrl = await getCustomerPortalUrl(user.id, token);
                               window.open(portalUrl, '_blank');
                             } catch (error) {
                               console.error('Failed to get portal URL:', error);

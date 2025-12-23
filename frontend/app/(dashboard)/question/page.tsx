@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useUser } from "@clerk/nextjs"
+import { useUser, useAuth } from "@clerk/nextjs"
 import { useSearchParams } from "next/navigation"
 import { QuestionCard } from "@/components/question-card"
 import { CountdownTimer } from "@/components/countdown-timer"
@@ -21,6 +21,7 @@ const domainNames: Record<number, string> = {
 
 export default function QuestionPage() {
   const { user } = useUser()
+  const { getToken } = useAuth()
   const searchParams = useSearchParams()
   const domainParam = searchParams.get('domain')
   const selectedDomain = domainParam ? parseInt(domainParam, 10) : undefined
@@ -44,13 +45,14 @@ export default function QuestionPage() {
     setResetsAt(null)
 
     try {
+      const token = await getToken()
       const userEmail = user.primaryEmailAddress.emailAddress
       // Validate domain if provided
       const domain = selectedDomain && selectedDomain >= 1 && selectedDomain <= 5 
         ? selectedDomain 
         : undefined
       
-      const newQuestion = await fetchQuestion(user.id, userEmail, domain)
+      const newQuestion = await fetchQuestion(user.id, userEmail, domain, token)
       setQuestion(newQuestion)
     } catch (err: any) {
       console.error("Failed to load question:", err)
@@ -67,7 +69,8 @@ export default function QuestionPage() {
         } else {
           // Fetch unlock status to get resetsAt
           try {
-            const unlockStatus = await getRemainingQuestions(user.id)
+            const token = await getToken()
+            const unlockStatus = await getRemainingQuestions(user.id, token)
             setResetsAt(unlockStatus.resetsAt)
           } catch (unlockErr) {
             // Calculate default reset time (midnight tomorrow)
@@ -94,7 +97,8 @@ export default function QuestionPage() {
       throw new Error("User or question not available")
     }
 
-    const response = await submitAnswer(user.id, question.id, choice)
+    const token = await getToken()
+    const response = await submitAnswer(user.id, question.id, choice, token)
     return response
   }
 

@@ -6,11 +6,13 @@ import logger from '../lib/logger';
 
 export async function submitAnswer(req: Request, res: Response): Promise<void> {
   try {
-    const { userId, questionId, selectedAnswer, selectedChoice } = req.body;
-    const answer = selectedAnswer || selectedChoice; // Support both field names
+    const userId = (req as any).userId; // From verified JWT
+    const { questionId, selectedAnswer, selectedChoice, selectedOption } = req.body;
+    // Support multiple field names for backward compatibility
+    const answer = selectedChoice || selectedAnswer || selectedOption;
 
-    if (!userId || !questionId || !answer) {
-      res.status(400).json({ error: 'userId, questionId, and selectedAnswer/selectedChoice are required' });
+    if (!questionId || !answer) {
+      res.status(400).json({ error: 'questionId and selectedChoice/selectedAnswer/selectedOption are required' });
       return;
     }
 

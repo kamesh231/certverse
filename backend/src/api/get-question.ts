@@ -6,14 +6,9 @@ import { getRemainingQuestions } from '../services/unlockService';
 
 export async function getQuestion(req: Request, res: Response): Promise<void> {
   try {
-    const userId = req.query.userId as string;
+    const userId = (req as any).userId; // From verified JWT
     const userEmail = req.query.userEmail as string | undefined;
     const domain = req.query.domain as string | undefined;
-
-    if (!userId) {
-      res.status(400).json({ error: 'userId is required' });
-      return;
-    }
 
     if (!userEmail) {
       res.status(400).json({ error: 'userEmail is required for watermarking' });

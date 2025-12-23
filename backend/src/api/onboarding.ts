@@ -19,12 +19,7 @@ import logger from '../lib/logger';
 // GET /api/onboarding/status
 export async function getOnboardingStatus(req: Request, res: Response): Promise<void> {
   try {
-    const userId = req.query.userId as string;
-
-    if (!userId) {
-      res.status(400).json({ error: 'userId is required' });
-      return;
-    }
+    const userId = (req as any).userId; // From verified JWT
 
     const state = await getOnboardingState(userId);
     const completed = await hasCompletedOnboarding(userId);
@@ -42,12 +37,7 @@ export async function getOnboardingStatus(req: Request, res: Response): Promise<
 // POST /api/onboarding/start
 export async function startOnboarding(req: Request, res: Response): Promise<void> {
   try {
-    const { userId } = req.body;
-
-    if (!userId) {
-      res.status(400).json({ error: 'userId is required' });
-      return;
-    }
+    const userId = (req as any).userId; // From verified JWT
 
     const state = await createOnboardingState(userId);
 
@@ -64,8 +54,8 @@ export async function startOnboarding(req: Request, res: Response): Promise<void
 // POST /api/onboarding/goal
 export async function saveGoal(req: Request, res: Response): Promise<void> {
   try {
+    const userId = (req as any).userId; // From verified JWT
     const {
-      userId,
       goal,
       certification,
       experienceLevel,
@@ -73,8 +63,8 @@ export async function saveGoal(req: Request, res: Response): Promise<void> {
       examDate,
     } = req.body;
 
-    if (!userId || !goal) {
-      res.status(400).json({ error: 'userId and goal are required' });
+    if (!goal) {
+      res.status(400).json({ error: 'goal is required' });
       return;
     }
 
@@ -97,10 +87,11 @@ export async function saveGoal(req: Request, res: Response): Promise<void> {
 // POST /api/onboarding/confidence
 export async function saveConfidence(req: Request, res: Response): Promise<void> {
   try {
-    const { userId, ratings, category } = req.body;
+    const userId = (req as any).userId; // From verified JWT
+    const { ratings, category } = req.body;
 
-    if (!userId || !ratings || !category) {
-      res.status(400).json({ error: 'userId, ratings, and category are required' });
+    if (!ratings || !category) {
+      res.status(400).json({ error: 'ratings and category are required' });
       return;
     }
 
@@ -116,12 +107,7 @@ export async function saveConfidence(req: Request, res: Response): Promise<void>
 // GET /api/onboarding/weak-topics
 export async function getWeakTopicsEndpoint(req: Request, res: Response): Promise<void> {
   try {
-    const userId = req.query.userId as string;
-
-    if (!userId) {
-      res.status(400).json({ error: 'userId is required' });
-      return;
-    }
+    const userId = (req as any).userId; // From verified JWT
 
     const weakTopics = await getWeakTopics(userId);
 
@@ -135,12 +121,7 @@ export async function getWeakTopicsEndpoint(req: Request, res: Response): Promis
 // GET /api/onboarding/recommended-difficulty
 export async function getRecommendedDifficultyEndpoint(req: Request, res: Response): Promise<void> {
   try {
-    const userId = req.query.userId as string;
-
-    if (!userId) {
-      res.status(400).json({ error: 'userId is required' });
-      return;
-    }
+    const userId = (req as any).userId; // From verified JWT
 
     const difficulty = await getRecommendedDifficulty(userId);
 
@@ -154,10 +135,11 @@ export async function getRecommendedDifficultyEndpoint(req: Request, res: Respon
 // POST /api/onboarding/step
 export async function updateStep(req: Request, res: Response): Promise<void> {
   try {
-    const { userId, step, data } = req.body;
+    const userId = (req as any).userId; // From verified JWT
+    const { step, data } = req.body;
 
-    if (!userId || !step) {
-      res.status(400).json({ error: 'userId and step are required' });
+    if (!step) {
+      res.status(400).json({ error: 'step is required' });
       return;
     }
 
@@ -173,13 +155,7 @@ export async function updateStep(req: Request, res: Response): Promise<void> {
 // POST /api/onboarding/complete
 export async function finishOnboarding(req: Request, res: Response): Promise<void> {
   try {
-    const { userId } = req.body;
-
-    if (!userId) {
-      res.status(400).json({ error: 'userId is required' });
-      return;
-    }
-
+    const userId = (req as any).userId; // From verified JWT
     await completeOnboarding(userId);
 
     res.json({ success: true });
@@ -192,12 +168,7 @@ export async function finishOnboarding(req: Request, res: Response): Promise<voi
 // GET /api/onboarding/preferences
 export async function getPreferences(req: Request, res: Response): Promise<void> {
   try {
-    const userId = req.query.userId as string;
-
-    if (!userId) {
-      res.status(400).json({ error: 'userId is required' });
-      return;
-    }
+    const userId = (req as any).userId; // From verified JWT
 
     const preferences = await getUserPreferences(userId);
 
@@ -211,13 +182,8 @@ export async function getPreferences(req: Request, res: Response): Promise<void>
 // PUT /api/onboarding/preferences
 export async function updatePreferences(req: Request, res: Response): Promise<void> {
   try {
-    const { userId, ...preferences } = req.body;
-
-    if (!userId) {
-      res.status(400).json({ error: 'userId is required' });
-      return;
-    }
-
+    const userId = (req as any).userId; // From verified JWT
+    const preferences = req.body;
     await updateUserPreferences(userId, preferences);
 
     res.json({ success: true });
@@ -230,10 +196,11 @@ export async function updatePreferences(req: Request, res: Response): Promise<vo
 // POST /api/onboarding/tip/shown
 export async function markTipAsShown(req: Request, res: Response): Promise<void> {
   try {
-    const { userId, tipId } = req.body;
+    const userId = (req as any).userId; // From verified JWT
+    const { tipId } = req.body;
 
-    if (!userId || !tipId) {
-      res.status(400).json({ error: 'userId and tipId are required' });
+    if (!tipId) {
+      res.status(400).json({ error: 'tipId is required' });
       return;
     }
 
@@ -249,11 +216,11 @@ export async function markTipAsShown(req: Request, res: Response): Promise<void>
 // GET /api/onboarding/tip/check
 export async function checkTipShown(req: Request, res: Response): Promise<void> {
   try {
-    const userId = req.query.userId as string;
+    const userId = (req as any).userId; // From verified JWT
     const tipId = req.query.tipId as string;
 
-    if (!userId || !tipId) {
-      res.status(400).json({ error: 'userId and tipId are required' });
+    if (!tipId) {
+      res.status(400).json({ error: 'tipId is required' });
       return;
     }
 

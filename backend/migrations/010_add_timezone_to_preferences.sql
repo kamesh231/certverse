@@ -6,3 +6,4 @@ ADD COLUMN IF NOT EXISTS timezone VARCHAR DEFAULT 'America/New_York';
 
 COMMENT ON COLUMN user_preferences.timezone IS 'User timezone for scheduling and notifications';
 
+

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { useUser } from "@clerk/nextjs"
+import { useUser, useAuth } from "@clerk/nextjs"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -10,6 +10,7 @@ import { createCheckoutUrl } from "@/lib/api"
 
 export default function PricingPage() {
   const { user } = useUser()
+  const { getToken } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
 
   const handleUpgrade = async () => {
@@ -20,9 +21,11 @@ export default function PricingPage() {
 
     setIsLoading(true)
     try {
+      const token = await getToken()
       const checkoutUrl = await createCheckoutUrl(
         user.id,
-        user.primaryEmailAddress.emailAddress
+        user.primaryEmailAddress.emailAddress,
+        token
       )
 
       // Redirect to Polar checkout

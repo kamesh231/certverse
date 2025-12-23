@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useUser } from "@clerk/nextjs"
+import { useUser, useAuth } from "@clerk/nextjs"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -30,6 +30,7 @@ const domainFullNames: Record<number, string> = {
 
 export default function DashboardPage() {
   const { user } = useUser()
+  const { getToken } = useAuth()
   const [stats, setStats] = useState<EnhancedUserStats | null>(null)
   const [history, setHistory] = useState<UserResponse[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -43,9 +44,10 @@ export default function DashboardPage() {
       setError(null)
 
       try {
+        const token = await getToken()
         const [statsData, historyData] = await Promise.all([
-          getEnhancedUserStats(user.id),
-          getUserHistory(user.id, 5),
+          getEnhancedUserStats(user.id, token),
+          getUserHistory(user.id, 5, token),
         ])
 
         setStats(statsData)
@@ -59,7 +61,7 @@ export default function DashboardPage() {
     }
 
     loadData()
-  }, [user?.id])
+  }, [user?.id, getToken])
 
   // Calculate domain performance from real data
   const domainData = stats?.domainPerformance

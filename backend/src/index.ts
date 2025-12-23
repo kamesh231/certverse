@@ -9,6 +9,20 @@ import { getUserSubscription, createCheckout } from './services/subscriptionServ
 import { getCustomerPortalUrl } from './lib/polarClient';
 import { rateLimiter } from './middleware/rateLimiter';
 import { errorHandler } from './middleware/errorHandler';
+import { verifyAuth } from './middleware/verifyAuth';
+import { validateRequest } from './middleware/validateRequest';
+import {
+  submitAnswerSchema,
+  getQuestionSchema,
+  getUserHistorySchema,
+  createCheckoutSchema,
+  saveGoalSchema,
+  saveConfidenceSchema,
+  updateStepSchema,
+  updatePreferencesSchema,
+  markTipShownSchema,
+  checkTipShownSchema,
+} from './lib/validation';
 import logger from './lib/logger';
 import './lib/sentry'; // Initialize Sentry
 import * as onboardingController from './api/onboarding';
@@ -63,23 +77,18 @@ app.get('/health', (req: Request, res: Response) => {
 });
 
 // Subscription endpoints
-app.get('/api/subscription', asyncHandler(async (req: Request, res: Response) => {
-  const userId = req.query.userId as string;
-
-  if (!userId) {
-    res.status(400).json({ error: 'userId is required' });
-    return;
-  }
-
+app.get('/api/subscription', verifyAuth, asyncHandler(async (req: Request, res: Response) => {
+  const userId = (req as any).userId;
   const subscription = await getUserSubscription(userId);
   res.json(subscription);
 }));
 
-app.post('/api/checkout/create', asyncHandler(async (req: Request, res: Response) => {
-  const { userId, userEmail } = req.body;
+app.post('/api/checkout/create', verifyAuth, validateRequest(createCheckoutSchema), asyncHandler(async (req: Request, res: Response) => {
+  const userId = (req as any).userId;
+  const { userEmail } = req.body;
 
-  if (!userId || !userEmail) {
-    res.status(400).json({ error: 'userId and userEmail are required' });
+  if (!userEmail) {
+    res.status(400).json({ error: 'userEmail is required' });
     return;
   }
 
@@ -88,14 +97,8 @@ app.post('/api/checkout/create', asyncHandler(async (req: Request, res: Response
 }));
 
 // Customer portal endpoint
-app.get('/api/subscription/portal-url', asyncHandler(async (req: Request, res: Response) => {
-  const userId = req.query.userId as string;
-
-  if (!userId) {
-    res.status(400).json({ error: 'userId is required' });
-    return;
-  }
-
+app.get('/api/subscription/portal-url', verifyAuth, asyncHandler(async (req: Request, res: Response) => {
+  const userId = (req as any).userId;
   const subscription = await getUserSubscription(userId);
 
   if (!subscription.polar_customer_id) {
@@ -108,28 +111,23 @@ app.get('/api/subscription/portal-url', asyncHandler(async (req: Request, res: R
 }));
 
 // Question endpoints
-app.get('/api/question', asyncHandler(async (req: Request, res: Response) => {
+app.get('/api/question', verifyAuth, validateRequest(getQuestionSchema, 'query'), asyncHandler(async (req: Request, res: Response) => {
   await getQuestion(req, res);
 }));
 
-app.post('/api/submit-answer', asyncHandler(async (req: Request, res: Response) => {
+app.post('/api/submit-answer', verifyAuth, validateRequest(submitAnswerSchema), asyncHandler(async (req: Request, res: Response) => {
   await submitAnswer(req, res);
 }));
 
 // Alias for submit-answer (frontend uses /api/submit)
-app.post('/api/submit', asyncHandler(async (req: Request, res: Response) => {
+app.post('/api/submit', verifyAuth, validateRequest(submitAnswerSchema), asyncHandler(async (req: Request, res: Response) => {
   await submitAnswer(req, res);
 }));
 
 // User history endpoint
-app.get('/api/history', asyncHandler(async (req: Request, res: Response) => {
-  const userId = req.query.userId as string;
+app.get('/api/history', verifyAuth, validateRequest(getUserHistorySchema, 'query'), asyncHandler(async (req: Request, res: Response) => {
+  const userId = (req as any).userId;
   const limit = parseInt(req.query.limit as string) || 10;
-
-  if (!userId) {
-    res.status(400).json({ error: 'userId is required' });
-    return;
-  }
 
   const { supabase } = await import('./lib/supabase');
 
@@ -163,13 +161,8 @@ app.get('/api/question-count', asyncHandler(async (req: Request, res: Response) 
 }));
 
 // Unlock status endpoint
-app.get('/api/unlock/remaining', asyncHandler(async (req: Request, res: Response) => {
-  const userId = req.query.userId as string;
-
-  if (!userId) {
-    res.status(400).json({ error: 'userId is required' });
-    return;
-  }
+app.get('/api/unlock/remaining', verifyAuth, asyncHandler(async (req: Request, res: Response) => {
+  const userId = (req as any).userId;
 
   const { getRemainingQuestions } = await import('./services/unlockService');
   const { getUserSubscription } = await import('./services/subscriptionService');
@@ -199,13 +192,8 @@ app.get('/api/unlock/remaining', asyncHandler(async (req: Request, res: Response
 }));
 
 // Enhanced stats endpoint
-app.get('/api/stats/enhanced', asyncHandler(async (req: Request, res: Response) => {
-  const userId = req.query.userId as string;
-
-  if (!userId) {
-    res.status(400).json({ error: 'userId is required' });
-    return;
-  }
+app.get('/api/stats/enhanced', verifyAuth, asyncHandler(async (req: Request, res: Response) => {
+  const userId = (req as any).userId;
 
   const { supabase } = await import('./lib/supabase');
 
@@ -328,13 +316,8 @@ app.get('/api/stats/enhanced', asyncHandler(async (req: Request, res: Response) 
 }));
 
 // User stats endpoint
-app.get('/api/stats', asyncHandler(async (req: Request, res: Response) => {
-  const userId = req.query.userId as string;
-
-  if (!userId) {
-    res.status(400).json({ error: 'userId is required' });
-    return;
-  }
+app.get('/api/stats', verifyAuth, asyncHandler(async (req: Request, res: Response) => {
+  const userId = (req as any).userId;
 
   const { supabase } = await import('./lib/supabase');
 
@@ -359,18 +342,18 @@ app.get('/api/stats', asyncHandler(async (req: Request, res: Response) => {
 }));
 
 // Onboarding endpoints
-app.get('/api/onboarding/status', asyncHandler(onboardingController.getOnboardingStatus));
-app.post('/api/onboarding/start', asyncHandler(onboardingController.startOnboarding));
-app.post('/api/onboarding/goal', asyncHandler(onboardingController.saveGoal));
-app.post('/api/onboarding/confidence', asyncHandler(onboardingController.saveConfidence));
-app.get('/api/onboarding/weak-topics', asyncHandler(onboardingController.getWeakTopicsEndpoint));
-app.get('/api/onboarding/recommended-difficulty', asyncHandler(onboardingController.getRecommendedDifficultyEndpoint));
-app.post('/api/onboarding/step', asyncHandler(onboardingController.updateStep));
-app.post('/api/onboarding/complete', asyncHandler(onboardingController.finishOnboarding));
-app.get('/api/onboarding/preferences', asyncHandler(onboardingController.getPreferences));
-app.put('/api/onboarding/preferences', asyncHandler(onboardingController.updatePreferences));
-app.post('/api/onboarding/tip/shown', asyncHandler(onboardingController.markTipAsShown));
-app.get('/api/onboarding/tip/check', asyncHandler(onboardingController.checkTipShown));
+app.get('/api/onboarding/status', verifyAuth, asyncHandler(onboardingController.getOnboardingStatus));
+app.post('/api/onboarding/start', verifyAuth, asyncHandler(onboardingController.startOnboarding));
+app.post('/api/onboarding/goal', verifyAuth, validateRequest(saveGoalSchema), asyncHandler(onboardingController.saveGoal));
+app.post('/api/onboarding/confidence', verifyAuth, validateRequest(saveConfidenceSchema), asyncHandler(onboardingController.saveConfidence));
+app.get('/api/onboarding/weak-topics', verifyAuth, asyncHandler(onboardingController.getWeakTopicsEndpoint));
+app.get('/api/onboarding/recommended-difficulty', verifyAuth, asyncHandler(onboardingController.getRecommendedDifficultyEndpoint));
+app.post('/api/onboarding/step', verifyAuth, validateRequest(updateStepSchema), asyncHandler(onboardingController.updateStep));
+app.post('/api/onboarding/complete', verifyAuth, asyncHandler(onboardingController.finishOnboarding));
+app.get('/api/onboarding/preferences', verifyAuth, asyncHandler(onboardingController.getPreferences));
+app.put('/api/onboarding/preferences', verifyAuth, validateRequest(updatePreferencesSchema), asyncHandler(onboardingController.updatePreferences));
+app.post('/api/onboarding/tip/shown', verifyAuth, validateRequest(markTipShownSchema), asyncHandler(onboardingController.markTipAsShown));
+app.get('/api/onboarding/tip/check', verifyAuth, validateRequest(checkTipShownSchema, 'query'), asyncHandler(onboardingController.checkTipShown));
 
 // Error handling
 app.use(errorHandler);

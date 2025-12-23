@@ -2,6 +2,21 @@
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
+/**
+ * Helper function to get Clerk JWT token
+ * This should be called from client components using useAuth hook
+ */
+export async function getAuthToken(): Promise<string | null> {
+  try {
+    // This will be called from components that have access to useAuth
+    // We'll pass the token as a parameter to API functions
+    return null; // Placeholder - token will be passed from components
+  } catch (error) {
+    console.error('Error getting auth token:', error);
+    return null;
+  }
+}
+
 // Types matching backend
 export interface Question {
   id: string;
@@ -67,25 +82,32 @@ export interface UserResponse {
  * @param userId - User ID
  * @param userEmail - User email (required for watermarking)
  * @param domain - Optional domain number (1-5) to filter questions
+ * @param token - Clerk JWT token (required for authentication)
  */
 export async function fetchQuestion(
   userId: string,
   userEmail: string,
-  domain?: number
+  domain?: number,
+  token?: string | null
 ): Promise<Question> {
   try {
     const url = new URL(`${API_URL}/api/question`);
-    url.searchParams.set('userId', userId);
     url.searchParams.set('userEmail', userEmail);
     if (domain !== undefined && domain >= 1 && domain <= 5) {
       url.searchParams.set('domain', domain.toString());
     }
 
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+    };
+
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
     const response = await fetch(url.toString(), {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
     });
 
     if (!response.ok) {
@@ -109,20 +131,30 @@ export async function fetchQuestion(
 
 /**
  * Submit an answer to a question
+ * @param userId - User ID (deprecated, will be extracted from token)
+ * @param questionId - Question ID
+ * @param selectedChoice - Selected answer choice
+ * @param token - Clerk JWT token (required for authentication)
  */
 export async function submitAnswer(
   userId: string,
   questionId: string,
-  selectedChoice: 'A' | 'B' | 'C' | 'D'
+  selectedChoice: 'A' | 'B' | 'C' | 'D',
+  token?: string | null
 ): Promise<SubmitAnswerResponse> {
   try {
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+    };
+
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
     const response = await fetch(`${API_URL}/api/submit`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify({
-        userId,
         questionId,
         selectedChoice,
       }),
@@ -142,14 +174,22 @@ export async function submitAnswer(
 
 /**
  * Get user statistics
+ * @param userId - User ID (deprecated, will be extracted from token)
+ * @param token - Clerk JWT token (required for authentication)
  */
-export async function getUserStats(userId: string): Promise<UserStats> {
+export async function getUserStats(userId: string, token?: string | null): Promise<UserStats> {
   try {
-    const response = await fetch(`${API_URL}/api/stats?userId=${userId}`, {
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+    };
+
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${API_URL}/api/stats`, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
     });
 
     if (!response.ok) {
@@ -166,21 +206,31 @@ export async function getUserStats(userId: string): Promise<UserStats> {
 
 /**
  * Get user answer history
+ * @param userId - User ID (deprecated, will be extracted from token)
+ * @param limit - Maximum number of responses to return
+ * @param token - Clerk JWT token (required for authentication)
  */
 export async function getUserHistory(
   userId: string,
-  limit: number = 10
+  limit: number = 10,
+  token?: string | null
 ): Promise<UserResponse[]> {
   try {
-    const response = await fetch(
-      `${API_URL}/api/history?userId=${userId}&limit=${limit}`,
-      {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }
-    );
+    const url = new URL(`${API_URL}/api/history`);
+    url.searchParams.set('limit', limit.toString());
+
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+    };
+
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(url.toString(), {
+      method: 'GET',
+      headers,
+    });
 
     if (!response.ok) {
       const error = await response.json();
@@ -236,14 +286,22 @@ export async function healthCheck(): Promise<{
 
 /**
  * Get remaining questions for today (Week 3 feature)
+ * @param userId - User ID (deprecated, will be extracted from token)
+ * @param token - Clerk JWT token (required for authentication)
  */
-export async function getRemainingQuestions(userId: string): Promise<UnlockStatus> {
+export async function getRemainingQuestions(userId: string, token?: string | null): Promise<UnlockStatus> {
   try {
-    const response = await fetch(`${API_URL}/api/unlock/remaining?userId=${userId}`, {
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+    };
+
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${API_URL}/api/unlock/remaining`, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
     });
 
     if (!response.ok) {
@@ -260,14 +318,22 @@ export async function getRemainingQuestions(userId: string): Promise<UnlockStatu
 
 /**
  * Get enhanced user statistics (includes streak - Week 3 feature)
+ * @param userId - User ID (deprecated, will be extracted from token)
+ * @param token - Clerk JWT token (required for authentication)
  */
-export async function getEnhancedUserStats(userId: string): Promise<EnhancedUserStats> {
+export async function getEnhancedUserStats(userId: string, token?: string | null): Promise<EnhancedUserStats> {
   try {
-    const response = await fetch(`${API_URL}/api/stats/enhanced?userId=${userId}`, {
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+    };
+
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${API_URL}/api/stats/enhanced`, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
     });
 
     if (!response.ok) {
@@ -306,14 +372,22 @@ export interface Subscription {
 
 /**
  * Get user's subscription status
+ * @param userId - User ID (deprecated, will be extracted from token)
+ * @param token - Clerk JWT token (required for authentication)
  */
-export async function getUserSubscription(userId: string): Promise<Subscription> {
+export async function getUserSubscription(userId: string, token?: string | null): Promise<Subscription> {
   try {
-    const response = await fetch(`${API_URL}/api/subscription?userId=${userId}`, {
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+    };
+
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${API_URL}/api/subscription`, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
     });
 
     if (!response.ok) {
@@ -346,15 +420,24 @@ export async function getUserSubscription(userId: string): Promise<Subscription>
 
 /**
  * Create Polar checkout URL
+ * @param userId - User ID (deprecated, will be extracted from token)
+ * @param userEmail - User email
+ * @param token - Clerk JWT token (required for authentication)
  */
-export async function createCheckoutUrl(userId: string, userEmail: string): Promise<string> {
+export async function createCheckoutUrl(userId: string, userEmail: string, token?: string | null): Promise<string> {
   try {
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+    };
+
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
     const response = await fetch(`${API_URL}/api/checkout/create`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ userId, userEmail }),
+      headers,
+      body: JSON.stringify({ userEmail }),
     });
 
     if (!response.ok) {
@@ -371,14 +454,22 @@ export async function createCheckoutUrl(userId: string, userEmail: string): Prom
 
 /**
  * Get Polar customer portal URL for managing subscription
+ * @param userId - User ID (deprecated, will be extracted from token)
+ * @param token - Clerk JWT token (required for authentication)
  */
-export async function getCustomerPortalUrl(userId: string): Promise<string> {
+export async function getCustomerPortalUrl(userId: string, token?: string | null): Promise<string> {
   try {
-    const response = await fetch(`${API_URL}/api/subscription/portal-url?userId=${userId}`, {
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+    };
+
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${API_URL}/api/subscription/portal-url`, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
     });
 
     if (!response.ok) {

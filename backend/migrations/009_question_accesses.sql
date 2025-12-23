@@ -33,3 +33,4 @@ COMMENT ON TABLE question_accesses IS 'Audit trail of all question views for lea
 COMMENT ON COLUMN question_accesses.user_email IS 'User email at time of access for watermarking';
 COMMENT ON COLUMN question_accesses.ip_address IS 'Optional IP address for additional tracking';
 
+
