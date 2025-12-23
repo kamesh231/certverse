@@ -121,6 +121,7 @@ export default function SettingsPage() {
   useEffect(() => {
     const searchParams = new URLSearchParams(window.location.search)
     if (searchParams.get('upgraded') === 'true' && user?.id) {
+      const userId = user.id // Capture user.id for use in async function
       alert('🎉 Welcome to Premium! Your subscription is now active.')
       // Clean up URL
       window.history.replaceState({}, '', '/settings')
@@ -128,7 +129,7 @@ export default function SettingsPage() {
       async function reloadSubscription() {
         try {
           const token = await getToken()
-          const subscriptionData = await getUserSubscription(user.id, token)
+          const subscriptionData = await getUserSubscription(userId, token)
           setSubscription(subscriptionData)
         } catch (error) {
           console.error('Failed to reload subscription:', error)
