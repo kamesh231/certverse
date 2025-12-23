@@ -135,8 +135,8 @@ export async function updateStatsAfterAnswer(
         // Same day, keep streak
         newStreak = stats.current_streak || 1;
       } else {
-        // Missed days, reset streak
-        newStreak = 1;
+        // Missed days, reset streak to 0 (Snapchat-style: habit broken)
+        newStreak = 0;
       }
     }
 
