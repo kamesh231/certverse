@@ -147,7 +147,6 @@ export default function ConfidenceStep({ certification, onNext }: ConfidenceStep
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId: user?.id,
           category: 'cisa', // Always use CISA for now
           ratings,
         }),

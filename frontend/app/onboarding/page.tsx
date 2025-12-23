@@ -24,7 +24,7 @@ export default function OnboardingPage() {
 
   const checkOnboardingStatus = async () => {
     try {
-      const res = await fetch(`/api/onboarding/status?userId=${user?.id}`);
+      const res = await fetch(`/api/onboarding/status`);
       const data = await res.json();
 
       if (data.completed) {
@@ -58,7 +58,7 @@ export default function OnboardingPage() {
       const response = await fetch('/api/onboarding/complete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user?.id }),
+        body: JSON.stringify({}), // userId comes from JWT token
       });
 
       const data = await response.json();

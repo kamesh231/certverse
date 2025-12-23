@@ -32,7 +32,7 @@ export default function DashboardLayout({
       const isRecentCompletion = justCompleted && timeSinceCompletion < 10000; // 10 seconds
 
       try {
-        const res = await fetch(`/api/onboarding/status?userId=${user.id}`);
+        const res = await fetch(`/api/onboarding/status`);
         const data = await res.json();
 
         // If onboarding not completed
@@ -55,7 +55,7 @@ export default function DashboardLayout({
 
               await new Promise(resolve => setTimeout(resolve, retryDelay));
               
-              const retryRes = await fetch(`/api/onboarding/status?userId=${user.id}`);
+              const retryRes = await fetch(`/api/onboarding/status`);
               const retryData = await retryRes.json();
 
               if (retryData.completed) {

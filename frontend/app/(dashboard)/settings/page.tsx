@@ -131,7 +131,7 @@ export default function SettingsPage() {
   const loadTimezone = async () => {
     if (!user?.id) return
     try {
-      const response = await fetch(`/api/onboarding/preferences?userId=${user.id}`)
+      const response = await fetch(`/api/onboarding/preferences`)
       const data = await response.json()
       const tz = data?.timezone || "America/New_York"
       setTimezone(tz)

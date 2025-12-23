@@ -34,7 +34,6 @@ export default function GoalStep({ onNext }: GoalStepProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId: user?.id,
           goal: 'certification',
           certification,
           experienceLevel,

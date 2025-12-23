@@ -1,9 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useUser } from '@clerk/nextjs';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+import { useUser, useAuth } from '@clerk/nextjs';
+import { fetchQuestion, submitAnswer } from '@/lib/api';
 
 interface FirstQuestionStepProps {
   onNext: () => void;
@@ -11,6 +10,7 @@ interface FirstQuestionStepProps {
 
 export default function FirstQuestionStep({ onNext }: FirstQuestionStepProps) {
   const { user } = useUser();
+  const { getToken } = useAuth();
   const [question, setQuestion] = useState<any>(null);
   const [selectedOption, setSelectedOption] = useState('');
   const [answered, setAnswered] = useState(false);
@@ -30,45 +30,61 @@ export default function FirstQuestionStep({ onNext }: FirstQuestionStepProps) {
       const userEmail = user.primaryEmailAddress?.emailAddress || '';
       if (!userEmail) {
         console.error('User email not available');
+        setLoading(false);
         return;
       }
 
-      const res = await fetch(`${API_URL}/api/question?userId=${user.id}&userEmail=${encodeURIComponent(userEmail)}&category=cisa`);
-      const data = await res.json();
-
-      if (data && data.id) {
-        setQuestion(data);
-      } else {
-        console.error('No question data received:', data);
+      const token = await getToken();
+      if (!token) {
+        console.error('Failed to get authentication token');
+        setLoading(false);
+        return;
       }
-    } catch (error) {
+
+      const questionData = await fetchQuestion(user.id, userEmail, undefined, token);
+      
+      if (questionData && questionData.id) {
+        setQuestion(questionData);
+      } else {
+        console.error('No question data received:', questionData);
+      }
+    } catch (error: any) {
       console.error('Error loading question:', error);
+      // Handle specific error cases
+      if (error.status === 401) {
+        console.error('Unauthorized - authentication failed');
+      } else if (error.status === 403) {
+        console.error('Daily limit reached');
+      }
     } finally {
       setLoading(false);
     }
   };
 
   const handleAnswer = async (option: string) => {
-    if (answered) return;
+    if (answered || !question) return;
 
     setSelectedOption(option);
 
     try {
-      const res = await fetch(`${API_URL}/api/submit`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: user?.id,
-          questionId: question.id,
-          selectedOption: option,
-        }),
-      });
+      const token = await getToken();
+      if (!token) {
+        console.error('Failed to get authentication token');
+        return;
+      }
 
-      const result = await res.json();
-      setIsCorrect(result.is_correct);
+      // Convert option to selectedChoice format (A, B, C, D)
+      const selectedChoice = option.toUpperCase() as 'A' | 'B' | 'C' | 'D';
+      
+      const result = await submitAnswer(user.id, question.id, selectedChoice, token);
+      setIsCorrect(result.correct);
       setAnswered(true);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error submitting answer:', error);
+      // Handle specific error cases
+      if (error.status === 401) {
+        console.error('Unauthorized - authentication failed');
+      }
     }
   };
 
