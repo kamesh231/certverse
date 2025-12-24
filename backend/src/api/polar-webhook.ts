@@ -10,34 +10,57 @@ import {
 import { fetchPolarCustomer } from '../lib/polarClient';
 import { findUserByEmail } from '../lib/userLookup';
 
-function verifyPolarWebhook(payload: string, signature: string, secret: string): boolean {
+/**
+ * Verify Polar webhook signature
+ * Polar uses format: v1,<base64-signature>
+ * Signature is computed as: HMAC-SHA256(webhook-id + ':' + timestamp + ':' + body, secret)
+ */
+function verifyPolarWebhook(
+  payload: string,
+  signatureHeader: string,
+  webhookId: string,
+  timestamp: string,
+  secret: string
+): boolean {
+  // Parse signature format: v1,<base64-signature>
+  const parts = signatureHeader.split(',');
+  if (parts.length !== 2 || parts[0] !== 'v1') {
+    logger.warn(`Invalid signature format: ${signatureHeader}`);
+    return false;
+  }
+
+  const receivedSignature = parts[1];
+
+  // Compute expected signature: HMAC-SHA256(webhook-id + ':' + timestamp + ':' + body, secret)
+  const signedPayload = `${webhookId}:${timestamp}:${payload}`;
   const hmac = crypto.createHmac('sha256', secret);
-  const digest = hmac.update(payload).digest('hex');
-  return signature === digest;
+  const computedSignature = hmac.update(signedPayload).digest('base64');
+
+  logger.info(`Signed payload format: ${webhookId}:${timestamp}:<body>`);
+  logger.info(`Received signature: ${receivedSignature}`);
+  logger.info(`Computed signature: ${computedSignature}`);
+
+  // Use timing-safe comparison to prevent timing attacks
+  return crypto.timingSafeEqual(
+    Buffer.from(receivedSignature),
+    Buffer.from(computedSignature)
+  );
 }
 
 export async function handlePolarWebhook(req: Request, res: Response): Promise<void> {
   try {
-    // Debug: Log all headers to see what Polar is sending
-    logger.info('=== ALL REQUEST HEADERS ===');
-    Object.keys(req.headers).forEach(key => {
-      logger.info(`Header: ${key} = ${req.headers[key]}`);
-    });
-    logger.info('=== END HEADERS ===');
-
-    // Try multiple possible header names (Polar might use different format)
-    const signature = 
-      (req.headers['polar-signature'] as string) ||
-      (req.headers['x-polar-signature'] as string) ||
-      (req.headers['polar-signature-256'] as string) ||
-      ((req.headers as any)['Polar-Signature'] as string);
+    // Polar uses webhook-signature header with format: v1,<base64-signature>
+    const signatureHeader = req.headers['webhook-signature'] as string;
+    const webhookId = req.headers['webhook-id'] as string;
+    const timestamp = req.headers['webhook-timestamp'] as string;
     
     const webhookSecret = process.env.POLAR_WEBHOOK_SECRET;
 
     // Enhanced debug logging
     logger.info('=== WEBHOOK DEBUG INFO ===');
-    logger.info(`Signature received: ${signature || 'NOT FOUND'}`);
-    logger.info(`Signature header keys checked: polar-signature, x-polar-signature, polar-signature-256, Polar-Signature`);
+    logger.info(`Signature header: ${signatureHeader || 'NOT FOUND'}`);
+    logger.info(`Webhook ID: ${webhookId || 'NOT FOUND'}`);
+    logger.info(`Timestamp: ${timestamp || 'NOT FOUND'}`);
     logger.info(`Webhook secret configured: ${webhookSecret ? 'YES (length: ' + webhookSecret.length + ')' : 'NO'}`);
     logger.info(`Raw body type: ${typeof (req as any).rawBody}`);
     logger.info(`Raw body length: ${(req as any).rawBody ? (req as any).rawBody.length : 'N/A'}`);
@@ -49,12 +72,33 @@ export async function handlePolarWebhook(req: Request, res: Response): Promise<v
       return;
     }
 
-    // Check if signature was found
-    if (!signature) {
-      logger.error('Webhook signature header not found in request');
-      logger.error('Checked headers: polar-signature, x-polar-signature, polar-signature-256, Polar-Signature');
-      logger.error('Please verify Polar is sending the signature header and check Polar documentation for correct header name');
+    // Check if required headers are present
+    if (!signatureHeader) {
+      logger.error('webhook-signature header not found in request');
       res.status(401).json({ error: 'Missing signature header' });
+      return;
+    }
+
+    if (!webhookId) {
+      logger.error('webhook-id header not found in request');
+      res.status(401).json({ error: 'Missing webhook-id header' });
+      return;
+    }
+
+    if (!timestamp) {
+      logger.error('webhook-timestamp header not found in request');
+      res.status(401).json({ error: 'Missing timestamp header' });
+      return;
+    }
+
+    // Verify timestamp to prevent replay attacks (within 5 minutes)
+    const currentTime = Math.floor(Date.now() / 1000);
+    const timestampNum = parseInt(timestamp, 10);
+    const timeDiff = Math.abs(currentTime - timestampNum);
+    
+    if (timeDiff > 300) { // 5 minutes
+      logger.warn(`Timestamp too old or too far in future. Current: ${currentTime}, Received: ${timestamp}, Diff: ${timeDiff}s`);
+      res.status(401).json({ error: 'Timestamp out of range' });
       return;
     }
 
@@ -66,22 +110,34 @@ export async function handlePolarWebhook(req: Request, res: Response): Promise<v
       return;
     }
 
-    // Compute expected signature
-    const hmac = crypto.createHmac('sha256', webhookSecret);
-    const expectedSignature = hmac.update(rawBody).digest('hex');
+    // Polar webhook secret format: whsec_<base64-secret>
+    // Need to extract and decode the secret
+    let decodedSecret = webhookSecret;
+    if (webhookSecret.startsWith('whsec_')) {
+      try {
+        // Extract the base64 part after 'whsec_'
+        const base64Secret = webhookSecret.substring(7);
+        decodedSecret = Buffer.from(base64Secret, 'base64').toString('utf-8');
+        logger.info('Decoded webhook secret from whsec_ format');
+      } catch (error) {
+        logger.warn('Failed to decode whsec_ format, using secret as-is');
+        decodedSecret = webhookSecret;
+      }
+    }
 
-    logger.info(`Expected signature: ${expectedSignature}`);
-    logger.info(`Signatures match: ${signature === expectedSignature}`);
-
-    if (!verifyPolarWebhook(rawBody, signature, webhookSecret)) {
+    // Verify signature
+    if (!verifyPolarWebhook(rawBody, signatureHeader, webhookId, timestamp, decodedSecret)) {
       logger.warn('Invalid webhook signature');
       logger.warn('This may be due to:');
       logger.warn('1. Incorrect POLAR_WEBHOOK_SECRET in environment');
-      logger.warn('2. Code not deployed to Railway yet');
-      logger.warn('3. Webhook secret mismatch with Polar dashboard');
+      logger.warn('2. Webhook secret mismatch with Polar dashboard');
+      logger.warn('3. Request body was modified');
+      logger.warn('4. Secret format issue (may need whsec_ decoding)');
       res.status(401).json({ error: 'Invalid signature' });
       return;
     }
+
+    logger.info('✅ Webhook signature verified successfully');
 
     const { type, data } = req.body;
 
