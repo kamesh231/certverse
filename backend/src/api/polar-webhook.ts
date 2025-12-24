@@ -18,12 +18,26 @@ function verifyPolarWebhook(payload: string, signature: string, secret: string):
 
 export async function handlePolarWebhook(req: Request, res: Response): Promise<void> {
   try {
-    const signature = req.headers['polar-signature'] as string;
+    // Debug: Log all headers to see what Polar is sending
+    logger.info('=== ALL REQUEST HEADERS ===');
+    Object.keys(req.headers).forEach(key => {
+      logger.info(`Header: ${key} = ${req.headers[key]}`);
+    });
+    logger.info('=== END HEADERS ===');
+
+    // Try multiple possible header names (Polar might use different format)
+    const signature = 
+      (req.headers['polar-signature'] as string) ||
+      (req.headers['x-polar-signature'] as string) ||
+      (req.headers['polar-signature-256'] as string) ||
+      ((req.headers as any)['Polar-Signature'] as string);
+    
     const webhookSecret = process.env.POLAR_WEBHOOK_SECRET;
 
     // Enhanced debug logging
     logger.info('=== WEBHOOK DEBUG INFO ===');
-    logger.info(`Signature received: ${signature}`);
+    logger.info(`Signature received: ${signature || 'NOT FOUND'}`);
+    logger.info(`Signature header keys checked: polar-signature, x-polar-signature, polar-signature-256, Polar-Signature`);
     logger.info(`Webhook secret configured: ${webhookSecret ? 'YES (length: ' + webhookSecret.length + ')' : 'NO'}`);
     logger.info(`Raw body type: ${typeof (req as any).rawBody}`);
     logger.info(`Raw body length: ${(req as any).rawBody ? (req as any).rawBody.length : 'N/A'}`);
@@ -32,6 +46,15 @@ export async function handlePolarWebhook(req: Request, res: Response): Promise<v
     if (!webhookSecret) {
       logger.error('POLAR_WEBHOOK_SECRET not configured');
       res.status(500).json({ error: 'Webhook secret not configured' });
+      return;
+    }
+
+    // Check if signature was found
+    if (!signature) {
+      logger.error('Webhook signature header not found in request');
+      logger.error('Checked headers: polar-signature, x-polar-signature, polar-signature-256, Polar-Signature');
+      logger.error('Please verify Polar is sending the signature header and check Polar documentation for correct header name');
+      res.status(401).json({ error: 'Missing signature header' });
       return;
     }
 
