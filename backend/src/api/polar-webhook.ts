@@ -67,10 +67,34 @@ export async function handlePolarWebhook(req: Request, res: Response): Promise<v
 
     const { type, data } = event;
 
+    logger.info(`========================================`);
     logger.info(`Received Polar webhook: ${type}`);
+    logger.info(`Event data keys: ${Object.keys(data).join(', ')}`);
+    logger.info(`========================================`);
 
     // Use any type for data since we're handling multiple event types
     const webhookData = data as any;
+
+    // Special handling for subscription.created with metadata
+    if (type === 'subscription.created' && webhookData.metadata?.user_id) {
+      logger.info('🎯 subscription.created with user_id in metadata detected!');
+      logger.info(`Direct user_id from metadata: ${webhookData.metadata.user_id}`);
+
+      // Directly use metadata user_id
+      await upgradeSubscription(webhookData.metadata.user_id, {
+        polarCustomerId: webhookData.customer_id,
+        polarSubscriptionId: webhookData.id,
+        currentPeriodStart: webhookData.current_period_start,
+        currentPeriodEnd: webhookData.current_period_end,
+        status: webhookData.status,
+        trialStart: webhookData.trial_start,
+        trialEnd: webhookData.trial_end,
+      });
+
+      logger.info(`✅ Processed subscription.created directly from metadata`);
+      res.json({ received: true });
+      return;
+    }
 
     switch (type) {
       // Checkout Events
