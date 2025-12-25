@@ -1,5 +1,8 @@
 import { Request, Response } from 'express';
-import { validateEvent, WebhookVerificationError } from '@polar-sh/sdk/dist/commonjs/webhooks';
+import path from 'path';
+// Use direct require with resolved path to avoid module resolution issues with Polar SDK
+const polarWebhooksPath = path.join(require.resolve('@polar-sh/sdk/package.json'), '../dist/commonjs/webhooks.js');
+const { validateEvent, WebhookVerificationError } = require(polarWebhooksPath);
 import logger from '../lib/logger';
 import {
   upgradeSubscription,
@@ -41,7 +44,7 @@ export async function handlePolarWebhook(req: Request, res: Response): Promise<v
       logger.info('✅ Webhook signature verified successfully using Polar SDK');
     } catch (error: unknown) {
       if (error instanceof WebhookVerificationError) {
-        logger.error('Invalid webhook signature:', error.message);
+        logger.error('Invalid webhook signature:', (error as Error).message);
         res.status(403).json({ error: 'Invalid signature' });
         return;
       }
