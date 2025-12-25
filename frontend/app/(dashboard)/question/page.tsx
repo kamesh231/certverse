@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2, Lock, Clock } from "lucide-react"
 import Link from "next/link"
 import { fetchQuestion, submitAnswer, getRemainingQuestions, Question, SubmitAnswerResponse } from "@/lib/api"
+import { CountdownTimer } from "@/components/countdown-timer"
 
 const domainNames: Record<number, string> = {
   1: "Information Systems Governance",
@@ -153,9 +154,18 @@ export default function QuestionPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             {resetsAt && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Clock className="h-4 w-4" />
-                <span>Resets at: {formatResetTime(resetsAt)}</span>
+              <div className="space-y-3">
+                <CountdownTimer 
+                  targetDate={resetsAt}
+                  onComplete={() => {
+                    // Reload question when timer completes
+                    loadQuestion()
+                  }}
+                />
+                <div className="flex items-center gap-2 text-xs text-muted-foreground justify-center">
+                  <Clock className="h-3 w-3" />
+                  <span>Resets at: {formatResetTime(resetsAt)}</span>
+                </div>
               </div>
             )}
             <Button asChild className="w-full">
