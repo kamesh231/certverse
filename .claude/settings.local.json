@@ -33,7 +33,10 @@
       "Bash(npx supabase:*)",
       "Bash(git reset:*)",
       "Bash(timeout 30 npx tsx:*)",
-      "Bash(xargs:*)"
+      "Bash(xargs:*)",
+      "Bash(cd:*)",
+      "Bash(cd /Users/kameshpriyanka/Library/Mobile\\\\ Documents/com~apple~CloudDocs/Documents/SideProjects/certverse/backend && npm run build:*)",
+      "Bash(git restore:*)"
     ],
     "deny": [],
     "ask": []
