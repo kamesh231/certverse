@@ -102,8 +102,9 @@ export async function getRemainingQuestions(userId: string): Promise<number> {
 async function calculateDailyUnlock(userId: string): Promise<number> {
   const subscription = await getUserSubscription(userId);
 
-  if (subscription.plan_type === 'paid' && subscription.status === 'active') {
-    return 999; // Unlimited for paid users
+  // Use is_paid which already checks for active, trialing, canceled (before period end), and past_due
+  if (subscription.is_paid) {
+    return 999; // Unlimited for paid users (including trial, canceled-but-active, dunning)
   }
 
   return 2; // Free users get 2 questions per day

@@ -174,7 +174,7 @@ app.get('/api/unlock/remaining', verifyAuth, asyncHandler(async (req: Request, r
 
   const remaining = await getRemainingQuestions(userId);
   const subscription = await getUserSubscription(userId);
-  const total = subscription.plan_type === 'paid' && subscription.status === 'active' ? 999 : 2;
+  const total = subscription.is_paid ? 999 : 2;
 
   // Get streak from user_stats
   const { supabase } = await import('./lib/supabase');

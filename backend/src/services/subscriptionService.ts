@@ -55,9 +55,22 @@ export async function getUserSubscription(userId: string): Promise<Subscription>
     throw error;
   }
 
+  // User has premium access if:
+  // 1. Active paid subscription
+  // 2. Trial period (still paid access during trial)
+  // 3. Canceled but period hasn't ended yet (user paid for full month)
+  // 4. Payment failed but in grace period (dunning)
+  const hasPremiumAccess =
+    data.plan_type === 'paid' && (
+      data.status === 'active' ||
+      data.status === 'trialing' ||
+      (data.status === 'canceled' && data.current_period_end && new Date() < new Date(data.current_period_end)) ||
+      data.status === 'past_due'
+    );
+
   return {
     ...data,
-    is_paid: data.plan_type === 'paid' && data.status === 'active',
+    is_paid: hasPremiumAccess,
   };
 }
 
@@ -227,9 +240,18 @@ export async function getSubscriptionByPolarId(
     throw error;
   }
 
+  // Use same premium access logic as getUserSubscription
+  const hasPremiumAccess =
+    data.plan_type === 'paid' && (
+      data.status === 'active' ||
+      data.status === 'trialing' ||
+      (data.status === 'canceled' && data.current_period_end && new Date() < new Date(data.current_period_end)) ||
+      data.status === 'past_due'
+    );
+
   return {
     ...data,
-    is_paid: data.plan_type === 'paid' && data.status === 'active',
+    is_paid: hasPremiumAccess,
   };
 }
 
