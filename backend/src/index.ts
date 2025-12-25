@@ -51,14 +51,19 @@ app.post('/api/webhooks/polar',
   express.raw({ type: 'application/json' }),
   async (req: Request, res: Response) => {
     try {
-      // Store raw body for signature verification
-      const rawBody = req.body.toString();
+      // req.body is a Buffer from express.raw()
+      logger.info('Webhook raw body type:', typeof req.body);
+      logger.info('Webhook raw body is Buffer:', Buffer.isBuffer(req.body));
+
+      // Keep as Buffer for Polar SDK (it accepts string or Buffer)
+      const rawBody = req.body;
+
       // Parse JSON for processing
-      const parsedBody = JSON.parse(rawBody);
+      const parsedBody = JSON.parse(rawBody.toString());
 
       // Add both to request for webhook handler
-      (req as any).rawBody = rawBody;
-      req.body = parsedBody;
+      (req as any).rawBody = rawBody; // Pass Buffer to webhook handler
+      req.body = parsedBody; // Parsed object for convenience
 
       await handlePolarWebhook(req, res);
     } catch (error) {

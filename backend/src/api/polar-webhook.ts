@@ -46,6 +46,10 @@ export async function handlePolarWebhook(req: Request, res: Response): Promise<v
       return;
     }
 
+    logger.info('Raw body type:', typeof rawBody);
+    logger.info('Raw body is Buffer:', Buffer.isBuffer(rawBody));
+    logger.info('Raw body is string:', typeof rawBody === 'string');
+
     let event;
     try {
       // validateEvent expects raw string/Buffer body, not parsed object
