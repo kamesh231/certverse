@@ -38,9 +38,18 @@ export async function handlePolarWebhook(req: Request, res: Response): Promise<v
       }
     }
 
+    // Get raw body for signature verification (set by middleware in index.ts)
+    const rawBody = (req as any).rawBody;
+    if (!rawBody) {
+      logger.error('Raw body not found - middleware may not have set it');
+      res.status(500).json({ error: 'Internal error' });
+      return;
+    }
+
     let event;
     try {
-      event = validateEvent(req.body, headers, webhookSecret);
+      // validateEvent expects raw string/Buffer body, not parsed object
+      event = validateEvent(rawBody, headers, webhookSecret);
       logger.info('✅ Webhook signature verified successfully using Polar SDK');
     } catch (error: unknown) {
       if (error instanceof WebhookVerificationError) {
@@ -48,6 +57,7 @@ export async function handlePolarWebhook(req: Request, res: Response): Promise<v
         res.status(403).json({ error: 'Invalid signature' });
         return;
       }
+      logger.error('Unexpected error during webhook validation:', error);
       throw error;
     }
 
