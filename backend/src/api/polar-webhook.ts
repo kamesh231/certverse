@@ -133,37 +133,45 @@ export async function handlePolarWebhook(req: Request, res: Response): Promise<v
 async function handleCheckoutCompleted(data: any): Promise<void> {
   logger.info('=== CHECKOUT COMPLETED DATA ===');
   logger.info(`Customer ID: ${data.customer_id}`);
-  logger.info(`Subscription ID: ${data.subscription_id}`);
-  logger.info(`Status: ${data.status}`);
+  logger.info(`Customer Email: ${data.customer_email}`);
+  logger.info(`Checkout Status: ${data.status}`);
   logger.info(`Metadata: ${JSON.stringify(data.metadata)}`);
+  logger.info(`Subscription ID: ${data.subscription_id || 'NOT YET CREATED'}`);
+
+  // For checkout.updated with status=succeeded, subscription hasn't been created yet
+  // We'll handle the upgrade in subscription.created event instead
+  if (!data.subscription_id) {
+    logger.info('✓ Checkout succeeded but subscription not created yet');
+    logger.info('  Will process upgrade when subscription.created webhook fires');
+    return;
+  }
+
+  // If we get here, we have a subscription_id (shouldn't happen with checkout.updated)
+  logger.warn('Checkout has subscription_id - unusual for checkout.updated event');
 
   let userId = data.metadata?.user_id;
 
-  // NEW: Fallback to email matching if no user_id in metadata
+  // Fallback to email matching if no user_id in metadata
   if (!userId) {
-    logger.warn('No user_id in checkout metadata, attempting email match');
+    logger.warn('No user_id in checkout metadata, using customer_email');
+
+    const customerEmail = data.customer_email;
+    if (!customerEmail) {
+      logger.error('No customer_email in checkout data');
+      return;
+    }
 
     try {
-      // Fetch Polar customer to get email
-      const customer = await fetchPolarCustomer(data.customer_id);
-
-      if (!customer || !customer.email) {
-        logger.error(`No email found for Polar customer ${data.customer_id}`);
-        return;
-      }
-
       // Find user by email in our system
-      userId = await findUserByEmail(customer.email);
+      userId = await findUserByEmail(customerEmail);
 
       if (!userId) {
-        logger.error(`No user found in Certverse for email: ${customer.email}`);
+        logger.error(`No user found in Certverse for email: ${customerEmail}`);
         logger.error('Please ensure this user has signed up in Certverse before subscribing on Polar');
         return;
       }
 
-      logger.info(
-        `Successfully matched Polar customer ${data.customer_id} to user ${userId} via email ${customer.email}`
-      );
+      logger.info(`Successfully matched email ${customerEmail} to user ${userId}`);
     } catch (error) {
       logger.error('Error during email matching in checkout:', error);
       return;
@@ -172,16 +180,6 @@ async function handleCheckoutCompleted(data: any): Promise<void> {
     logger.info(`User ID found in metadata: ${userId}`);
   }
 
-  // Verify subscription data exists
-  if (!data.subscription_id) {
-    logger.error('No subscription_id in checkout data - subscription may not have been created yet');
-    logger.error('Full checkout data:', JSON.stringify(data, null, 2));
-    return;
-  }
-
-  // Product ID validation removed - using checkout links now
-  // Checkout links handle product selection, so validation is not needed
-
   logger.info(`Upgrading subscription for user ${userId} with Polar subscription ${data.subscription_id}`);
 
   await upgradeSubscription(userId, {
@@ -189,7 +187,7 @@ async function handleCheckoutCompleted(data: any): Promise<void> {
     polarSubscriptionId: data.subscription_id,
     currentPeriodStart: data.current_period_start,
     currentPeriodEnd: data.current_period_end,
-    status: data.status,  // Pass status to detect trialing
+    status: data.status,
     trialStart: data.trial_start,
     trialEnd: data.trial_end,
   });
@@ -238,6 +236,12 @@ async function handlePaymentFailed(data: any): Promise<void> {
 }
 
 async function handleSubscriptionUpdated(data: any): Promise<void> {
+  logger.info('=== SUBSCRIPTION EVENT ===');
+  logger.info(`Subscription ID: ${data.id}`);
+  logger.info(`Customer ID: ${data.customer_id}`);
+  logger.info(`Status: ${data.status}`);
+  logger.info(`Current Period: ${data.current_period_start} to ${data.current_period_end}`);
+
   let subscription = await getSubscriptionByPolarId(data.id);
 
   // If subscription not found in our DB, try to match by customer email
@@ -253,19 +257,22 @@ async function handleSubscriptionUpdated(data: any): Promise<void> {
         return;
       }
 
+      logger.info(`Fetched customer email: ${customer.email}`);
+
       // Find user by email
       const userId = await findUserByEmail(customer.email);
 
       if (!userId) {
         logger.error(`No user found in Certverse for email: ${customer.email}`);
+        logger.error('User must sign up in Certverse before purchasing subscription');
         return;
       }
 
       logger.info(
-        `Matched Polar subscription ${data.id} to user ${userId} via email ${customer.email}`
+        `✓ Matched Polar subscription ${data.id} to user ${userId} via email ${customer.email}`
       );
 
-      // Create/update subscription record
+      // Create/update subscription record (upsert will handle both)
       await upgradeSubscription(userId, {
         polarCustomerId: data.customer_id,
         polarSubscriptionId: data.id,
@@ -276,18 +283,22 @@ async function handleSubscriptionUpdated(data: any): Promise<void> {
         trialEnd: data.trial_end,
       });
 
+      logger.info(`✅ Subscription created for user ${userId} - upgraded to paid`);
       return;
     } catch (error) {
-      logger.error('Error during email matching in subscription.updated:', error);
+      logger.error('Error during email matching in subscription event:', error);
       return;
     }
   }
+
+  // Subscription exists, just update status
+  logger.info(`Updating existing subscription for user ${subscription.user_id}`);
 
   await updateSubscriptionStatus(subscription.user_id, data.status, {
     currentPeriodEnd: data.current_period_end,
   });
 
-  logger.info(`Subscription updated for user ${subscription.user_id}`);
+  logger.info(`✅ Subscription updated for user ${subscription.user_id} - status: ${data.status}`);
 }
 
 async function handleSubscriptionUncanceled(data: any): Promise<void> {
