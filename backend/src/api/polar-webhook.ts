@@ -131,11 +131,17 @@ export async function handlePolarWebhook(req: Request, res: Response): Promise<v
 }
 
 async function handleCheckoutCompleted(data: any): Promise<void> {
+  logger.info('=== CHECKOUT COMPLETED DATA ===');
+  logger.info(`Customer ID: ${data.customer_id}`);
+  logger.info(`Subscription ID: ${data.subscription_id}`);
+  logger.info(`Status: ${data.status}`);
+  logger.info(`Metadata: ${JSON.stringify(data.metadata)}`);
+
   let userId = data.metadata?.user_id;
 
   // NEW: Fallback to email matching if no user_id in metadata
   if (!userId) {
-    logger.warn('No user_id in checkout.completed metadata, attempting email match');
+    logger.warn('No user_id in checkout metadata, attempting email match');
 
     try {
       // Fetch Polar customer to get email
@@ -159,13 +165,24 @@ async function handleCheckoutCompleted(data: any): Promise<void> {
         `Successfully matched Polar customer ${data.customer_id} to user ${userId} via email ${customer.email}`
       );
     } catch (error) {
-      logger.error('Error during email matching in checkout.completed:', error);
+      logger.error('Error during email matching in checkout:', error);
       return;
     }
+  } else {
+    logger.info(`User ID found in metadata: ${userId}`);
+  }
+
+  // Verify subscription data exists
+  if (!data.subscription_id) {
+    logger.error('No subscription_id in checkout data - subscription may not have been created yet');
+    logger.error('Full checkout data:', JSON.stringify(data, null, 2));
+    return;
   }
 
   // Product ID validation removed - using checkout links now
   // Checkout links handle product selection, so validation is not needed
+
+  logger.info(`Upgrading subscription for user ${userId} with Polar subscription ${data.subscription_id}`);
 
   await upgradeSubscription(userId, {
     polarCustomerId: data.customer_id,
@@ -177,7 +194,7 @@ async function handleCheckoutCompleted(data: any): Promise<void> {
     trialEnd: data.trial_end,
   });
 
-  logger.info(`Checkout completed for user ${userId}`);
+  logger.info(`✅ Checkout completed successfully for user ${userId} - subscription upgraded to paid`);
 }
 
 async function handleSubscriptionCanceled(data: any): Promise<void> {

@@ -89,7 +89,7 @@ export async function canOfferTrial(userId: string): Promise<boolean> {
   return !data.has_used_trial;
 }
 
-// Upgrade user to paid subscription
+// Upgrade user to paid subscription (creates or updates record)
 export async function upgradeSubscription(
   userId: string,
   polarData: {
@@ -102,7 +102,8 @@ export async function upgradeSubscription(
     trialEnd?: string;
   }
 ): Promise<void> {
-  const updateData: any = {
+  const upsertData: any = {
+    user_id: userId, // Required for upsert
     plan_type: 'paid',
     status: polarData.status || 'active',
     polar_customer_id: polarData.polarCustomerId,
@@ -114,23 +115,26 @@ export async function upgradeSubscription(
 
   // If this is a trial subscription, track it
   if (polarData.status === 'trialing') {
-    updateData.trial_start = polarData.trialStart;
-    updateData.trial_end = polarData.trialEnd;
-    updateData.has_used_trial = true;  // Mark that trial has been used
+    upsertData.trial_start = polarData.trialStart;
+    upsertData.trial_end = polarData.trialEnd;
+    upsertData.has_used_trial = true;  // Mark that trial has been used
     logger.info(`Starting trial for user ${userId} (ends: ${polarData.trialEnd})`);
   }
 
+  // Use upsert to create or update subscription record
+  // This handles the case where user doesn't have a subscription yet
   const { error } = await supabase
     .from('subscriptions')
-    .update(updateData)
-    .eq('user_id', userId);
+    .upsert(upsertData, {
+      onConflict: 'user_id', // Update if user_id already exists
+    });
 
   if (error) {
     logger.error('Error upgrading subscription:', error);
     throw error;
   }
 
-  logger.info(`Upgraded subscription for user ${userId} to ${polarData.status || 'active'}`);
+  logger.info(`Upgraded subscription for user ${userId} to ${polarData.status || 'active'} (upserted)`);
 }
 
 // Downgrade user to free subscription
