@@ -32,7 +32,8 @@
       "WebSearch",
       "Bash(npx supabase:*)",
       "Bash(git reset:*)",
-      "Bash(timeout 30 npx tsx:*)"
+      "Bash(timeout 30 npx tsx:*)",
+      "Bash(xargs:*)"
     ],
     "deny": [],
     "ask": []
