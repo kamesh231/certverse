@@ -228,33 +228,48 @@ export async function createCheckout(userId: string, userEmail: string): Promise
     ? 'https://sandbox-api.polar.sh'
     : 'https://api.polar.sh';
 
-  const checkoutLinkId = process.env.POLAR_CHECKOUT_LINK_ID || 'polar_cl_8zC0XSFEmnoN0ty4RWLuN7n65AVeQAwrQxgl03p2G9o';
-
-  if (!checkoutLinkId) {
-    throw new Error('POLAR_CHECKOUT_LINK_ID environment variable is required');
+  const polarApiKey = process.env.POLAR_API_KEY;
+  if (!polarApiKey) {
+    throw new Error('POLAR_API_KEY environment variable is required');
   }
+
+  const productPriceId = process.env.POLAR_PRODUCT_PRICE_ID || '71f3d2c6-ce12-4cf8-8444-a922c2fd2469';
+  const frontendUrl = process.env.FRONTEND_URL || 'https://certverse.vercel.app';
 
   // Check trial eligibility
   const isTrialEligible = await canOfferTrial(userId);
-  if (!isTrialEligible) {
-    logger.warn(`User ${userId} has already used trial, but allowing checkout to proceed`);
-    // Note: Polar will handle trial eligibility on their end as well.
-    // If you want to strictly prevent repeat trials, you could:
-    // throw new Error('User has already used their trial period');
-  } else {
-    logger.info(`User ${userId} is eligible for trial`);
-  }
+  logger.info(`User ${userId} trial eligibility: ${isTrialEligible}`);
 
-  // Build checkout URL with metadata, email, and success redirect
-  const frontendUrl = process.env.FRONTEND_URL || 'https://certverse.vercel.app';
-  const params = new URLSearchParams({
-    'customer_email': userEmail,
-    'metadata[user_id]': userId,
-    'success_url': `${frontendUrl}/settings?upgraded=true`,
+  // Create checkout session via Polar API
+  const checkoutData = {
+    product_price_id: productPriceId,
+    success_url: `${frontendUrl}/settings?upgraded=true`,
+    customer_email: userEmail,
+    metadata: {
+      user_id: userId,
+    },
+  };
+
+  logger.info('Creating Polar checkout session:', JSON.stringify(checkoutData, null, 2));
+
+  const response = await fetch(`${apiBase}/v1/checkouts/`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${polarApiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(checkoutData),
   });
 
-  const checkoutUrl = `${apiBase}/v1/checkout-links/${checkoutLinkId}/redirect?${params.toString()}`;
+  if (!response.ok) {
+    const errorText = await response.text();
+    logger.error(`Failed to create checkout: ${response.status} ${errorText}`);
+    throw new Error(`Failed to create checkout: ${response.statusText}`);
+  }
 
-  logger.info(`Created checkout URL for user ${userId}: ${checkoutUrl}`);
-  return checkoutUrl;
+  const checkout = await response.json() as any;
+  logger.info(`Created checkout session: ${checkout.id}`);
+  logger.info(`Checkout URL: ${checkout.url}`);
+
+  return checkout.url;
 }
