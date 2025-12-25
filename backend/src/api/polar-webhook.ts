@@ -10,8 +10,6 @@ import {
   updateSubscriptionStatus,
   getSubscriptionByPolarId,
 } from '../services/subscriptionService';
-import { fetchPolarCustomer } from '../lib/polarClient';
-import { findUserByEmail } from '../lib/userLookup';
 
 export async function handlePolarWebhook(req: Request, res: Response): Promise<void> {
   try {
@@ -77,7 +75,9 @@ export async function handlePolarWebhook(req: Request, res: Response): Promise<v
 
     // Special handling for subscription.created with metadata
     if (type === 'subscription.created' && webhookData.metadata?.user_id) {
-      logger.info('🎯 subscription.created with user_id in metadata detected!');
+      logger.info('========================================');
+      logger.info('🎯 SPECIAL HANDLER: subscription.created with metadata');
+      logger.info('========================================');
       logger.info(`Direct user_id from metadata: ${webhookData.metadata.user_id}`);
 
       // Directly use metadata user_id
@@ -157,7 +157,6 @@ export async function handlePolarWebhook(req: Request, res: Response): Promise<v
 async function handleCheckoutCompleted(data: any): Promise<void> {
   logger.info('=== CHECKOUT COMPLETED DATA ===');
   logger.info(`Customer ID: ${data.customer_id}`);
-  logger.info(`Customer Email: ${data.customer_email}`);
   logger.info(`Checkout Status: ${data.status}`);
   logger.info(`Metadata: ${JSON.stringify(data.metadata)}`);
   logger.info(`Subscription ID: ${data.subscription_id || 'NOT YET CREATED'}`);
@@ -173,37 +172,16 @@ async function handleCheckoutCompleted(data: any): Promise<void> {
   // If we get here, we have a subscription_id (shouldn't happen with checkout.updated)
   logger.warn('Checkout has subscription_id - unusual for checkout.updated event');
 
-  let userId = data.metadata?.user_id;
+  const userId = data.metadata?.user_id;
 
-  // Fallback to email matching if no user_id in metadata
+  // Email lookup removed - Supabase doesn't store emails (only Clerk does)
   if (!userId) {
-    logger.warn('No user_id in checkout metadata, using customer_email');
-
-    const customerEmail = data.customer_email;
-    if (!customerEmail) {
-      logger.error('No customer_email in checkout data');
-      return;
-    }
-
-    try {
-      // Find user by email in our system
-      userId = await findUserByEmail(customerEmail);
-
-      if (!userId) {
-        logger.error(`No user found in Certverse for email: ${customerEmail}`);
-        logger.error('Please ensure this user has signed up in Certverse before subscribing on Polar');
-        return;
-      }
-
-      logger.info(`Successfully matched email ${customerEmail} to user ${userId}`);
-    } catch (error) {
-      logger.error('Error during email matching in checkout:', error);
-      return;
-    }
-  } else {
-    logger.info(`User ID found in metadata: ${userId}`);
+    logger.error('❌ No user_id in checkout metadata');
+    logger.error('Checkout must include metadata.user_id to process subscription');
+    return;
   }
 
+  logger.info(`User ID found in metadata: ${userId}`);
   logger.info(`Upgrading subscription for user ${userId} with Polar subscription ${data.subscription_id}`);
 
   await upgradeSubscription(userId, {
@@ -268,51 +246,13 @@ async function handleSubscriptionUpdated(data: any): Promise<void> {
 
   let subscription = await getSubscriptionByPolarId(data.id);
 
-  // If subscription not found in our DB, try to match by customer email
+  // If subscription not found in our DB, we can't process it
+  // Email lookup removed because Supabase doesn't store emails (only Clerk does)
   if (!subscription) {
-    logger.warn(`Subscription not found for Polar ID: ${data.id}, attempting email match`);
-
-    try {
-      // Fetch Polar customer to get email
-      const customer = await fetchPolarCustomer(data.customer_id);
-
-      if (!customer || !customer.email) {
-        logger.error(`No email found for Polar customer ${data.customer_id}`);
-        return;
-      }
-
-      logger.info(`Fetched customer email: ${customer.email}`);
-
-      // Find user by email
-      const userId = await findUserByEmail(customer.email);
-
-      if (!userId) {
-        logger.error(`No user found in Certverse for email: ${customer.email}`);
-        logger.error('User must sign up in Certverse before purchasing subscription');
-        return;
-      }
-
-      logger.info(
-        `✓ Matched Polar subscription ${data.id} to user ${userId} via email ${customer.email}`
-      );
-
-      // Create/update subscription record (upsert will handle both)
-      await upgradeSubscription(userId, {
-        polarCustomerId: data.customer_id,
-        polarSubscriptionId: data.id,
-        currentPeriodStart: data.current_period_start,
-        currentPeriodEnd: data.current_period_end,
-        status: data.status,
-        trialStart: data.trial_start,
-        trialEnd: data.trial_end,
-      });
-
-      logger.info(`✅ Subscription created for user ${userId} - upgraded to paid`);
-      return;
-    } catch (error) {
-      logger.error('Error during email matching in subscription event:', error);
-      return;
-    }
+    logger.error(`❌ Subscription not found for Polar ID: ${data.id}`);
+    logger.error('Subscription must be created via subscription.created event with metadata.user_id');
+    logger.error('Cannot process subscription without prior record in database');
+    return;
   }
 
   // Subscription exists, just update status
@@ -384,41 +324,19 @@ async function handleCustomerStateChanged(data: any): Promise<void> {
       let existingSubscription = await getSubscriptionByPolarId(subscription.id);
 
       if (!existingSubscription) {
-        // No subscription found, try email matching
-        logger.info(`No subscription found for Polar ID ${subscription.id}, attempting email match`);
-
-        if (!data.email) {
-          logger.error('No email in customer data');
-          continue;
-        }
-
-        const userId = await findUserByEmail(data.email);
-
-        if (!userId) {
-          logger.error(`No user found for email: ${data.email}`);
-          continue;
-        }
-
-        // Create/update subscription
-        await upgradeSubscription(userId, {
-          polarCustomerId: data.id,
-          polarSubscriptionId: subscription.id,
-          currentPeriodStart: subscription.current_period_start,
-          currentPeriodEnd: subscription.current_period_end,
-          status: subscription.status,
-          trialStart: subscription.trial_start,
-          trialEnd: subscription.trial_end,
-        });
-
-        logger.info(`Created/updated subscription for user ${userId}`);
-      } else {
-        // Update existing subscription status
-        await updateSubscriptionStatus(existingSubscription.user_id, subscription.status, {
-          currentPeriodEnd: subscription.current_period_end,
-        });
-
-        logger.info(`Updated subscription status for user ${existingSubscription.user_id}`);
+        // No subscription found - cannot process without prior record
+        // Email lookup removed because Supabase doesn't store emails (only Clerk does)
+        logger.error(`❌ No subscription found for Polar ID ${subscription.id}`);
+        logger.error('Subscription must be created via subscription.created event with metadata.user_id');
+        continue;
       }
+
+      // Update existing subscription status
+      await updateSubscriptionStatus(existingSubscription.user_id, subscription.status, {
+        currentPeriodEnd: subscription.current_period_end,
+      });
+
+      logger.info(`✅ Updated subscription status for user ${existingSubscription.user_id}`);
     } catch (error) {
       logger.error(`Error processing subscription ${subscription.id}:`, error);
     }
