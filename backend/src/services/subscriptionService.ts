@@ -228,9 +228,9 @@ export async function createCheckout(userId: string, userEmail: string): Promise
     ? 'https://sandbox-api.polar.sh'
     : 'https://api.polar.sh';
 
-  const polarApiKey = process.env.POLAR_API_KEY;
+  const polarApiKey = process.env.POLAR_ACCESS_TOKEN;
   if (!polarApiKey) {
-    throw new Error('POLAR_API_KEY environment variable is required');
+    throw new Error('POLAR_ACCESS_TOKEN environment variable is required');
   }
 
   const productPriceId = process.env.POLAR_PRODUCT_PRICE_ID || '71f3d2c6-ce12-4cf8-8444-a922c2fd2469';
