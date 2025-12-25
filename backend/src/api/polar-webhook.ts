@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { validateEvent, WebhookVerificationError } from '@polar-sh/sdk/webhooks';
+import { validateEvent, WebhookVerificationError } from '@polar-sh/sdk/dist/commonjs/webhooks';
 import logger from '../lib/logger';
 import {
   upgradeSubscription,
@@ -25,11 +25,21 @@ export async function handlePolarWebhook(req: Request, res: Response): Promise<v
     }
 
     // Use Polar SDK to validate webhook
+    // Convert headers to Record<string, string> for Polar SDK
+    const headers: Record<string, string> = {};
+    for (const [key, value] of Object.entries(req.headers)) {
+      if (typeof value === 'string') {
+        headers[key] = value;
+      } else if (Array.isArray(value)) {
+        headers[key] = value[0]; // Take first value if array
+      }
+    }
+
     let event;
     try {
-      event = validateEvent(req.body, req.headers, webhookSecret);
+      event = validateEvent(req.body, headers, webhookSecret);
       logger.info('✅ Webhook signature verified successfully using Polar SDK');
-    } catch (error) {
+    } catch (error: unknown) {
       if (error instanceof WebhookVerificationError) {
         logger.error('Invalid webhook signature:', error.message);
         res.status(403).json({ error: 'Invalid signature' });
@@ -42,6 +52,9 @@ export async function handlePolarWebhook(req: Request, res: Response): Promise<v
 
     logger.info(`Received Polar webhook: ${type}`);
 
+    // Use any type for data since we're handling multiple event types
+    const webhookData = data as any;
+
     switch (type) {
       // Checkout Events
       case 'checkout.created':
@@ -49,52 +62,44 @@ export async function handlePolarWebhook(req: Request, res: Response): Promise<v
         break;
 
       case 'checkout.updated':
-        await handleCheckoutCompleted(data);
-        break;
-
-      case 'checkout.completed':
-        await handleCheckoutCompleted(data);
+        // Polar uses checkout.updated instead of checkout.completed
+        await handleCheckoutCompleted(webhookData);
         break;
 
       // Subscription Events
       case 'subscription.created':
-        await handleSubscriptionUpdated(data);
+        await handleSubscriptionUpdated(webhookData);
         break;
 
       case 'subscription.active':
-        await handleSubscriptionUpdated(data);
+        await handleSubscriptionUpdated(webhookData);
         break;
 
       case 'subscription.updated':
-        await handleSubscriptionUpdated(data);
+        await handleSubscriptionUpdated(webhookData);
         break;
 
       case 'subscription.canceled':
-        await handleSubscriptionCanceled(data);
+        await handleSubscriptionCanceled(webhookData);
         break;
 
       case 'subscription.uncanceled':
-        await handleSubscriptionUncanceled(data);
+        await handleSubscriptionUncanceled(webhookData);
         break;
 
       case 'subscription.revoked':
-      case 'subscription.ended':
-        await handleSubscriptionEnded(data);
+        // Polar uses subscription.revoked (no subscription.ended event)
+        await handleSubscriptionEnded(webhookData);
         break;
 
       // Order Events
       case 'order.created':
-        await handleOrderCreated(data);
-        break;
-
-      // Payment Events
-      case 'payment.failed':
-        await handlePaymentFailed(data);
+        await handleOrderCreated(webhookData);
         break;
 
       // Customer Events
       case 'customer.state_changed':
-        await handleCustomerStateChanged(data);
+        await handleCustomerStateChanged(webhookData);
         break;
 
       default:
