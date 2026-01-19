@@ -39,10 +39,22 @@ app.set('trust proxy', true);
 
 // Security middleware
 app.use(helmet());
+
+// CORS - Allow all domain variations
+const allowedOrigins = [
+  'https://www.certverse.online',      // Primary domain (with www)
+  'https://certverse.online',          // Root domain (redirects to www)
+  'https://certverse.vercel.app',      // Vercel subdomain
+  'http://localhost:3000'              // Local development
+];
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: allowedOrigins,
   credentials: true
 }));
+
+// Log allowed origins for debugging
+logger.info(`✅ CORS configured for origins: ${allowedOrigins.join(', ')}`);
 
 // Rate limiting
 app.use(rateLimiter);
