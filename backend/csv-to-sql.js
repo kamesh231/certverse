@@ -55,6 +55,9 @@ sql += `ALTER TABLE questions DROP CONSTRAINT IF EXISTS questions_difficulty_che
 sql += `ALTER TABLE questions ADD CONSTRAINT questions_difficulty_check \n`;
 sql += `CHECK (difficulty IN ('Easy', 'Medium', 'Hard', 'Expert'));\n\n`;
 
+// Auto-generate IDs starting from CISA-01356 for rows without IDs
+let nextIdNumber = 1356; // Start after CISA-01355
+
 // Process in batches of 100 for better performance
 const batchSize = 100;
 let totalQuestions = 0;
@@ -71,7 +74,8 @@ for (let i = 0; i < parsed.data.length; i += batchSize) {
 
   const values = batch.map((row, idx) => {
     // Map CSV columns to database columns
-    const questionId = row['ID'] || null;
+    // Auto-generate ID if missing (format: CISA-XXXXX with 5 digits)
+    const questionId = row['ID'] || `CISA-${String(nextIdNumber++).padStart(5, '0')}`;
     const domain = extractDomain(row['Domain']);
     const difficulty = row['Difficulty'] || null;
     const topic = row['Topic'] || null;

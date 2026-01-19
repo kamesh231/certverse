@@ -499,7 +499,15 @@ export default function QuestionPage() {
 
         {/* Question Card */}
         {!isReviewComplete && (
-          <Card>
+          <Card className="relative">
+            {/* Visible Watermark */}
+            {user?.primaryEmailAddress?.emailAddress && (
+              <div className="absolute bottom-2 right-2 opacity-30 pointer-events-none select-none text-xs text-muted-foreground z-10">
+                {user.primaryEmailAddress.emailAddress.substring(0, 3)}***@
+                {user.primaryEmailAddress.emailAddress.split('@')[1]} • {new Date().toLocaleDateString()}
+              </div>
+            )}
+            
             <CardHeader>
               <div className="flex items-center justify-between mb-4">
                 <Badge variant="default">Domain {question.domain}</Badge>
