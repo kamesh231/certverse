@@ -8,6 +8,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Upload, CheckCircle, XCircle, Loader2, AlertTriangle, BookOpen } from "lucide-react"
 import { uploadQuestions, Question } from "@/lib/api"
+import Papa from 'papaparse'
 
 interface ParsedQuestion extends Omit<Question, 'id' | 'created_at'> {
   rowNumber: number;
@@ -68,66 +69,68 @@ export default function AdminPage() {
   }
 
   const parseCSV = (csvText: string): ParsedQuestion[] => {
-    const lines = csvText.split('\n').filter(line => line.trim())
-    if (lines.length < 2) {
-      throw new Error('File must contain header row and at least one data row')
+    // Use papaparse to properly handle multi-line cells and quoted fields
+    const parsed = Papa.parse(csvText, {
+      delimiter: '\t', // Tab-separated
+      header: true,    // First row is headers
+      skipEmptyLines: true,
+      transformHeader: (header: string) => header.trim(),
+    })
+
+    if (parsed.errors.length > 0) {
+      console.error('CSV parsing errors:', parsed.errors)
     }
 
-    const headers = lines[0].split('\t').map(h => h.trim())
+    if (!parsed.data || parsed.data.length === 0) {
+      throw new Error('File must contain at least one data row')
+    }
+
     const questions: ParsedQuestion[] = []
 
-    // Helper to get column index
-    const getCol = (name: string) => {
-      const idx = headers.findIndex(h => h.toLowerCase() === name.toLowerCase())
-      return idx
-    }
-
-    for (let i = 1; i < lines.length; i++) {
-      if (!lines[i].trim()) continue
-
-      const values = lines[i].split('\t').map(v => v.trim())
+    parsed.data.forEach((row: any, index: number) => {
       const errors: string[] = []
 
       // Extract and validate fields
-      const domainStr = values[getCol('Domain')]
-      const domain = parseInt(domainStr?.replace(/Domain\s*/i, '') || '0')
+      const domainStr = row['Domain'] || ''
+      const domain = parseInt(domainStr.replace(/Domain\s*/i, '') || '0')
       
       if (!domain || domain < 1 || domain > 5) {
         errors.push('Invalid domain (must be 1-5)')
       }
 
-      const q_text = values[getCol('Question')]
+      const q_text = (row['Question'] || '').trim()
       if (!q_text || q_text.length < 10) {
         errors.push('Question text too short (min 10 chars)')
       }
 
-      const choice_a = values[getCol('Option A')]
-      const choice_b = values[getCol('Option B')]
-      const choice_c = values[getCol('Option C')]
-      const choice_d = values[getCol('Option D')]
+      const choice_a = (row['Option A'] || '').trim()
+      const choice_b = (row['Option B'] || '').trim()
+      const choice_c = (row['Option C'] || '').trim()
+      const choice_d = (row['Option D'] || '').trim()
       
       if (!choice_a || !choice_b || !choice_c || !choice_d) {
         errors.push('All 4 options (A-D) are required')
       }
 
-      const answer = values[getCol('Answer')]?.toUpperCase()
+      const answer = (row['Answer'] || '').trim().toUpperCase()
       if (!['A', 'B', 'C', 'D'].includes(answer)) {
         errors.push('Answer must be A, B, C, or D')
       }
 
-      const enhanced_reasoning = values[getCol('Enhanced Reasoning')]
-      const explanation = enhanced_reasoning || values[getCol('Reasoning')]
+      const enhanced_reasoning = (row['Enhanced Reasoning'] || '').trim()
+      const reasoning = (row['Reasoning'] || '').trim()
+      const explanation = enhanced_reasoning || reasoning
       
       if (!explanation || explanation.length < 20) {
         errors.push('Explanation too short (min 20 chars)')
       }
 
       const question: ParsedQuestion = {
-        rowNumber: i + 1,
-        question_id: values[getCol('ID')],
+        rowNumber: index + 2, // +2 because index starts at 0 and we skip header
+        question_id: (row['ID'] || '').trim() || undefined,
         domain,
-        difficulty: values[getCol('Difficulty')] as any,
-        topic: values[getCol('Topic')],
+        difficulty: (row['Difficulty'] || '').trim() as any,
+        topic: (row['Topic'] || '').trim() || undefined,
         q_text,
         choice_a,
         choice_b,
@@ -135,14 +138,14 @@ export default function AdminPage() {
         choice_d,
         answer: answer as any,
         explanation,
-        reasoning: values[getCol('Reasoning')],
-        incorrect_rationale: values[getCol('Incorrect Rationale')],
-        enhanced_reasoning,
+        reasoning: reasoning || undefined,
+        incorrect_rationale: (row['Incorrect Rationale'] || '').trim() || undefined,
+        enhanced_reasoning: enhanced_reasoning || undefined,
         errors: errors.length > 0 ? errors : undefined
       }
 
       questions.push(question)
-    }
+    })
 
     return questions
   }
