@@ -5,6 +5,7 @@ import { useUser, useAuth } from "@clerk/nextjs"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
 import { Check, X, Loader2, Sparkles } from "lucide-react"
 import { createCheckoutUrl } from "@/lib/api"
 
@@ -12,6 +13,10 @@ export default function PricingPage() {
   const { user } = useUser()
   const { getToken } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
+  const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'quarterly'>('monthly')
+  const [showWaitlistForm, setShowWaitlistForm] = useState(false)
+  const [waitlistEmail, setWaitlistEmail] = useState('')
+  const [waitlistSubmitted, setWaitlistSubmitted] = useState(false)
 
   const handleUpgrade = async () => {
     if (!user?.id || !user?.primaryEmailAddress?.emailAddress) {
@@ -35,6 +40,26 @@ export default function PricingPage() {
       alert('Failed to start checkout. Please try again.')
       setIsLoading(false)
     }
+  }
+
+  const handleWaitlistSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!waitlistEmail) return
+    
+    // Store in localStorage for now
+    const existingEmails = JSON.parse(localStorage.getItem('coach_waitlist') || '[]')
+    existingEmails.push({
+      email: waitlistEmail,
+      timestamp: new Date().toISOString()
+    })
+    localStorage.setItem('coach_waitlist', JSON.stringify(existingEmails))
+    
+    setWaitlistSubmitted(true)
+    setTimeout(() => {
+      setShowWaitlistForm(false)
+      setWaitlistEmail('')
+      setWaitlistSubmitted(false)
+    }, 2000)
   }
 
   const plans = [
@@ -61,8 +86,8 @@ export default function PricingPage() {
     },
     {
       name: "Premium",
-      price: "$29",
-      period: "per month",
+      price: billingPeriod === 'monthly' ? "$29" : "$59",
+      period: billingPeriod === 'monthly' ? "per month" : "per 3 months",
       description: "Everything you need to ace your CISA exam",
       features: [
         "Unlimited questions",
@@ -83,7 +108,7 @@ export default function PricingPage() {
       name: "Coach",
       price: "$39",
       period: "per month",
-      description: "AI-powered coaching (Coming Q2 2025)",
+      description: "AI-powered coaching (Coming Q2 2026)",
       features: [
         "Everything in Premium",
         "AI Reasoning Tutor",
@@ -115,6 +140,28 @@ export default function PricingPage() {
           </p>
         </div>
 
+        {/* Billing Period Toggle */}
+        <div className="flex justify-center mb-8">
+          <div className="inline-flex items-center bg-muted p-1 rounded-lg">
+            <Button
+              variant={billingPeriod === 'monthly' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setBillingPeriod('monthly')}
+            >
+              Monthly
+            </Button>
+            <Button
+              variant={billingPeriod === 'quarterly' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setBillingPeriod('quarterly')}
+              className="relative"
+            >
+              Quarterly
+              <Badge className="ml-2 bg-green-500 text-white text-xs">Save 32%</Badge>
+            </Button>
+          </div>
+        </div>
+
         {/* Plans Grid */}
         <div className="grid md:grid-cols-3 gap-8 mb-16">
           {plans.map((plan, index) => (
@@ -138,7 +185,7 @@ export default function PricingPage() {
               {plan.comingSoon && (
                 <div className="absolute -top-4 left-1/2 -translate-x-1/2">
                   <Badge variant="secondary">
-                    Coming Q2 2025
+                    Coming Q2 2026
                   </Badge>
                 </div>
               )}
@@ -186,11 +233,19 @@ export default function PricingPage() {
                       plan.cta
                     )}
                   </Button>
+                ) : plan.comingSoon ? (
+                  <Button
+                    className="w-full"
+                    variant={plan.ctaVariant}
+                    onClick={() => setShowWaitlistForm(true)}
+                  >
+                    {plan.cta}
+                  </Button>
                 ) : (
                   <Button
                     className="w-full"
                     variant={plan.ctaVariant}
-                    disabled={plan.name === "Free" || plan.comingSoon}
+                    disabled={plan.name === "Free"}
                   >
                     {plan.cta}
                   </Button>
@@ -199,6 +254,56 @@ export default function PricingPage() {
             </Card>
           ))}
         </div>
+
+        {/* Waitlist Modal */}
+        {showWaitlistForm && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <Card className="w-full max-w-md relative">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute top-4 right-4"
+                onClick={() => setShowWaitlistForm(false)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+              
+              <CardHeader>
+                <CardTitle>Join Coach Waitlist</CardTitle>
+                <CardDescription>
+                  Be the first to know when our AI Coach launches in Q2 2026
+                </CardDescription>
+              </CardHeader>
+              
+              <CardContent>
+                {waitlistSubmitted ? (
+                  <div className="text-center py-6">
+                    <Check className="h-12 w-12 text-green-600 mx-auto mb-4" />
+                    <p className="font-semibold text-green-600">You're on the list!</p>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      We'll email you when Coach is available.
+                    </p>
+                  </div>
+                ) : (
+                  <form onSubmit={handleWaitlistSubmit} className="space-y-4">
+                    <div>
+                      <Input
+                        type="email"
+                        placeholder="Enter your email"
+                        value={waitlistEmail}
+                        onChange={(e) => setWaitlistEmail(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <Button type="submit" className="w-full">
+                      Join Waitlist
+                    </Button>
+                  </form>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
         {/* FAQ */}
         <div className="max-w-3xl mx-auto">

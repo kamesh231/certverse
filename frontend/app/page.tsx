@@ -1,18 +1,22 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useUser } from "@clerk/nextjs"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardDescription, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Brain, MessageSquare, TrendingUp, ArrowRight, Check, Sparkles } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Brain, MessageSquare, TrendingUp, ArrowRight, Check, Sparkles, X } from "lucide-react"
 import { Navbar } from "@/components/navbar"
 
 export default function Home() {
   const { user, isLoaded } = useUser()
   const router = useRouter()
+  const [showWaitlistForm, setShowWaitlistForm] = useState(false)
+  const [waitlistEmail, setWaitlistEmail] = useState('')
+  const [waitlistSubmitted, setWaitlistSubmitted] = useState(false)
 
   useEffect(() => {
     if (isLoaded && user) {
@@ -20,6 +24,26 @@ export default function Home() {
       router.push('/dashboard')
     }
   }, [user, isLoaded, router])
+
+  const handleWaitlistSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!waitlistEmail) return
+    
+    // Store in localStorage for now
+    const existingEmails = JSON.parse(localStorage.getItem('coach_waitlist') || '[]')
+    existingEmails.push({
+      email: waitlistEmail,
+      timestamp: new Date().toISOString()
+    })
+    localStorage.setItem('coach_waitlist', JSON.stringify(existingEmails))
+    
+    setWaitlistSubmitted(true)
+    setTimeout(() => {
+      setShowWaitlistForm(false)
+      setWaitlistEmail('')
+      setWaitlistSubmitted(false)
+    }, 2000)
+  }
 
   // Show loading state while checking authentication
   if (!isLoaded) {
@@ -64,13 +88,6 @@ export default function Home() {
                 <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
               </Link>
             </Button>
-            <Button
-              size="lg"
-              variant="outline"
-              className="border-white/20 bg-white/10 text-white backdrop-blur-sm hover:bg-white/20"
-            >
-              View Demo
-            </Button>
           </div>
         </div>
       </section>
@@ -80,7 +97,7 @@ export default function Home() {
         <div className="mx-auto max-w-6xl">
           <div className="grid gap-8 sm:grid-cols-3">
             <div className="animate-fade-in text-center">
-              <div className="mb-2 text-4xl font-bold text-blue-600 sm:text-5xl">10,000+</div>
+              <div className="mb-2 text-4xl font-bold text-blue-600 sm:text-5xl">3,000+</div>
               <div className="text-muted-foreground">Practice Questions</div>
             </div>
             <div className="animate-fade-in text-center [animation-delay:100ms]">
@@ -88,7 +105,7 @@ export default function Home() {
               <div className="text-muted-foreground">Pass Rate</div>
             </div>
             <div className="animate-fade-in text-center [animation-delay:200ms]">
-              <div className="mb-2 text-4xl font-bold text-blue-600 sm:text-5xl">50,000+</div>
+              <div className="mb-2 text-4xl font-bold text-blue-600 sm:text-5xl">1,000+</div>
               <div className="text-muted-foreground">Successful Students</div>
             </div>
           </div>
@@ -242,7 +259,7 @@ export default function Home() {
             {/* Coach Plan */}
             <Card className="animate-fade-in-up [animation-delay:200ms]">
               <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                <Badge variant="secondary">Coming Q2 2025</Badge>
+                <Badge variant="secondary">Coming Q2 2026</Badge>
               </div>
               <CardHeader className="pt-8">
                 <CardTitle className="text-2xl">Coach</CardTitle>
@@ -273,13 +290,67 @@ export default function Home() {
                 </ul>
               </CardContent>
               <CardFooter>
-                <Button className="w-full" variant="secondary" disabled>
+                <Button 
+                  className="w-full" 
+                  variant="secondary" 
+                  onClick={() => setShowWaitlistForm(true)}
+                >
                   Join Waitlist
                 </Button>
               </CardFooter>
             </Card>
           </div>
         </div>
+
+        {/* Waitlist Modal */}
+        {showWaitlistForm && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <Card className="w-full max-w-md relative">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute top-4 right-4"
+                onClick={() => setShowWaitlistForm(false)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+              
+              <CardHeader>
+                <CardTitle>Join Coach Waitlist</CardTitle>
+                <CardDescription>
+                  Be the first to know when our AI Coach launches in Q2 2026
+                </CardDescription>
+              </CardHeader>
+              
+              <CardContent>
+                {waitlistSubmitted ? (
+                  <div className="text-center py-6">
+                    <Check className="h-12 w-12 text-green-600 mx-auto mb-4" />
+                    <p className="font-semibold text-green-600">You're on the list!</p>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      We'll email you when Coach is available.
+                    </p>
+                  </div>
+                ) : (
+                  <form onSubmit={handleWaitlistSubmit} className="space-y-4">
+                    <div>
+                      <Input
+                        type="email"
+                        placeholder="Enter your email"
+                        value={waitlistEmail}
+                        onChange={(e) => setWaitlistEmail(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <Button type="submit" className="w-full">
+                      Join Waitlist
+                    </Button>
+                  </form>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </section>
 
       {/* CTA Section */}
@@ -322,10 +393,11 @@ export default function Home() {
                     Pricing
                   </Link>
                 </li>
-                <li>
-                  <Link href="#" className="hover:text-foreground">
+                <li className="flex items-center gap-2">
+                  <span className="cursor-not-allowed">
                     Success Stories
-                  </Link>
+                  </span>
+                  <Badge variant="secondary" className="text-xs">Coming Soon</Badge>
                 </li>
               </ul>
             </div>
@@ -333,20 +405,23 @@ export default function Home() {
             <div>
               <h4 className="mb-4 text-sm font-semibold">Resources</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li>
-                  <Link href="#" className="hover:text-foreground">
+                <li className="flex items-center gap-2">
+                  <span className="cursor-not-allowed">
                     Study Guide
-                  </Link>
+                  </span>
+                  <Badge variant="secondary" className="text-xs">Coming Soon</Badge>
                 </li>
-                <li>
-                  <Link href="#" className="hover:text-foreground">
+                <li className="flex items-center gap-2">
+                  <span className="cursor-not-allowed">
                     Blog
-                  </Link>
+                  </span>
+                  <Badge variant="secondary" className="text-xs">Coming Soon</Badge>
                 </li>
-                <li>
-                  <Link href="#" className="hover:text-foreground">
+                <li className="flex items-center gap-2">
+                  <span className="cursor-not-allowed">
                     FAQ
-                  </Link>
+                  </span>
+                  <Badge variant="secondary" className="text-xs">Coming Soon</Badge>
                 </li>
               </ul>
             </div>
