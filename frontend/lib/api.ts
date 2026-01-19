@@ -82,12 +82,14 @@ export interface UserResponse {
  * @param userId - User ID
  * @param userEmail - User email (required for watermarking)
  * @param domain - Optional domain number (1-5) to filter questions
+ * @param reviewFilter - Optional review filter: 'all', 'correct', or 'incorrect'
  * @param token - Clerk JWT token (required for authentication)
  */
 export async function fetchQuestion(
   userId: string,
   userEmail: string,
   domain?: number,
+  reviewFilter?: 'all' | 'correct' | 'incorrect',
   token?: string | null
 ): Promise<Question> {
   try {
@@ -95,6 +97,9 @@ export async function fetchQuestion(
     url.searchParams.set('userEmail', userEmail);
     if (domain !== undefined && domain >= 1 && domain <= 5) {
       url.searchParams.set('domain', domain.toString());
+    }
+    if (reviewFilter) {
+      url.searchParams.set('reviewFilter', reviewFilter);
     }
 
     const headers: HeadersInit = {
@@ -265,6 +270,97 @@ export async function getQuestionCount(): Promise<number> {
   } catch (error) {
     console.error('Error fetching question count:', error);
     return 0;
+  }
+}
+
+/**
+ * Get count of incorrect answers for a user
+ * @param userId - User ID (deprecated, will be extracted from token)
+ * @param token - Clerk JWT token (required for authentication)
+ */
+export async function getIncorrectAnswersCount(
+  userId: string,
+  token?: string | null
+): Promise<number> {
+  try {
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+    };
+
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const history = await getUserHistory(userId, 100, token);
+    
+    // Get unique incorrect question IDs
+    const incorrectQuestionIds = new Set(
+      history
+        .filter(response => !response.correct)
+        .map(response => response.question_id)
+    );
+
+    return incorrectQuestionIds.size;
+  } catch (error) {
+    console.error('Error fetching incorrect answers count:', error);
+    return 0;
+  }
+}
+
+/**
+ * Get counts of all answered questions by type
+ * @param userId - User ID (deprecated, will be extracted from token)
+ * @param token - Clerk JWT token (required for authentication)
+ */
+export async function getReviewCounts(
+  userId: string,
+  token?: string | null
+): Promise<{
+  total: number;
+  correct: number;
+  incorrect: number;
+}> {
+  try {
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+    };
+
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const history = await getUserHistory(userId, 100, token);
+    
+    // Get unique question IDs for each category
+    const incorrectQuestionIds = new Set(
+      history
+        .filter(response => !response.correct)
+        .map(response => response.question_id)
+    );
+    
+    const correctQuestionIds = new Set(
+      history
+        .filter(response => response.correct)
+        .map(response => response.question_id)
+    );
+    
+    // Total unique questions answered
+    const totalQuestionIds = new Set(
+      history.map(response => response.question_id)
+    );
+
+    return {
+      total: totalQuestionIds.size,
+      correct: correctQuestionIds.size,
+      incorrect: incorrectQuestionIds.size,
+    };
+  } catch (error) {
+    console.error('Error fetching review counts:', error);
+    return {
+      total: 0,
+      correct: 0,
+      incorrect: 0,
+    };
   }
 }
 

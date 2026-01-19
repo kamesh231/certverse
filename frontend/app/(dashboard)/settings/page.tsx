@@ -658,11 +658,12 @@ export default function SettingsPage() {
                       </ul>
                     </div>
 
-                    {subscription?.is_paid && subscription?.polar_customer_id && (
-                      <div className="mt-6 flex gap-2">
+                    {subscription?.plan_type === 'paid' && 
+                     subscription?.polar_customer_id && 
+                     subscription?.is_paid && (
+                      <div className="mt-6">
                         <Button
-                          variant="outline"
-                          className="flex-1"
+                          className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
                           onClick={async () => {
                             try {
                               if (!user?.id) return;
@@ -675,8 +676,12 @@ export default function SettingsPage() {
                             }
                           }}
                         >
-                          View Customer Portal
+                          <CreditCard className="h-4 w-4 mr-2" />
+                          Manage Subscription
                         </Button>
+                        <p className="text-xs text-muted-foreground text-center mt-2">
+                          Update payment method, view invoices, or cancel subscription
+                        </p>
                       </div>
                     )}
                   </>

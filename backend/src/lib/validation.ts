@@ -27,6 +27,13 @@ export const getQuestionSchema = z.object({
     const num = parseInt(val, 10);
     return isNaN(num) || num < 1 || num > 5 ? undefined : num;
   }),
+  // New reviewFilter parameter (replaces incorrectOnly)
+  reviewFilter: z.enum(['all', 'correct', 'incorrect']).optional(),
+  // Keep incorrectOnly for backward compatibility
+  incorrectOnly: z.string().optional().transform((val) => {
+    if (!val) return false;
+    return val === 'true' || val === '1';
+  }),
 });
 
 // Get User History Schema (query params)

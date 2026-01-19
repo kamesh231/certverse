@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react"
 import { useUser, useAuth } from "@clerk/nextjs"
+import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Loader2, Lock, Clock } from "lucide-react"
+import { Loader2, Lock, Clock, RotateCcw } from "lucide-react"
 import Link from "next/link"
 import { fetchQuestion, submitAnswer, getRemainingQuestions, Question, SubmitAnswerResponse } from "@/lib/api"
 import { CountdownTimer } from "@/components/countdown-timer"
@@ -22,6 +23,7 @@ const domainNames: Record<number, string> = {
 export default function QuestionPage() {
   const { user } = useUser()
   const { getToken } = useAuth()
+  const searchParams = useSearchParams()
   const [question, setQuestion] = useState<Question | null>(null)
   const [selectedChoice, setSelectedChoice] = useState<"A" | "B" | "C" | "D" | null>(null)
   const [result, setResult] = useState<SubmitAnswerResponse | null>(null)
@@ -31,6 +33,24 @@ export default function QuestionPage() {
   const [selectedDomain, setSelectedDomain] = useState<number | undefined>(undefined)
   const [isLimitReached, setIsLimitReached] = useState(false)
   const [resetsAt, setResetsAt] = useState<string | null>(null)
+  
+  // Check if we're in review mode from URL (support both new and legacy parameters)
+  const reviewFilterParam = searchParams?.get('reviewFilter') as 'all' | 'correct' | 'incorrect' | null
+  const incorrectOnlyParam = searchParams?.get('incorrectOnly') === 'true'
+  
+  // Determine effective review filter
+  const reviewFilter = reviewFilterParam || (incorrectOnlyParam ? 'incorrect' : null)
+  
+  // Get domain from URL if provided
+  useEffect(() => {
+    const domainParam = searchParams?.get('domain')
+    if (domainParam) {
+      const domainNum = parseInt(domainParam, 10)
+      if (!isNaN(domainNum) && domainNum >= 1 && domainNum <= 5) {
+        setSelectedDomain(domainNum)
+      }
+    }
+  }, [searchParams])
 
   const loadQuestion = async () => {
     if (!user?.id || !user?.primaryEmailAddress?.emailAddress) {
@@ -52,7 +72,7 @@ export default function QuestionPage() {
         ? selectedDomain 
         : undefined
       
-      const newQuestion = await fetchQuestion(user.id, userEmail, domain, token)
+      const newQuestion = await fetchQuestion(user.id, userEmail, domain, reviewFilter || undefined, token)
       setQuestion(newQuestion)
       setSelectedChoice(null)
       setResult(null)
@@ -92,7 +112,7 @@ export default function QuestionPage() {
     if (user?.id) {
       loadQuestion()
     }
-  }, [user?.id, selectedDomain])
+  }, [user?.id, selectedDomain, reviewFilter])
 
   const handleSubmit = async (choice: "A" | "B" | "C" | "D") => {
     if (!question || !user?.id || isSubmitting) return
@@ -197,6 +217,38 @@ export default function QuestionPage() {
     return null
   }
 
+  // Helper functions for review mode banner
+  const getReviewModeBannerColor = (filter: string) => {
+    switch (filter) {
+      case 'incorrect': return 'orange'
+      case 'correct': return 'green'
+      case 'all': return 'blue'
+      default: return 'gray'
+    }
+  }
+
+  const getReviewModeTitle = (filter: string) => {
+    switch (filter) {
+      case 'incorrect': return 'Review Mode: Incorrect Answers'
+      case 'correct': return 'Review Mode: Correct Answers'
+      case 'all': return 'Review Mode: All Answers'
+      default: return 'Review Mode'
+    }
+  }
+
+  const getReviewModeDescription = (filter: string) => {
+    switch (filter) {
+      case 'incorrect': 
+        return "Reviewing questions you got wrong. Daily limits don't apply."
+      case 'correct': 
+        return "Reinforcing questions you got right. Daily limits don't apply."
+      case 'all': 
+        return "Reviewing all questions you've answered. Daily limits don't apply."
+      default: 
+        return "Review mode active"
+    }
+  }
+
   const choices = [
     { value: "A" as const, text: question.choice_a },
     { value: "B" as const, text: question.choice_b },
@@ -207,33 +259,54 @@ export default function QuestionPage() {
   return (
     <div className="min-h-screen bg-background p-4 md:p-8">
       <div className="max-w-4xl mx-auto space-y-6">
+        {/* Review Mode Banner */}
+        {reviewFilter && (
+          <Card className={`border-${getReviewModeBannerColor(reviewFilter)}-500 bg-${getReviewModeBannerColor(reviewFilter)}-50 dark:bg-${getReviewModeBannerColor(reviewFilter)}-950/30`}>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <RotateCcw className={`h-5 w-5 text-${getReviewModeBannerColor(reviewFilter)}-600 dark:text-${getReviewModeBannerColor(reviewFilter)}-400`} />
+                <div>
+                  <p className={`font-semibold text-${getReviewModeBannerColor(reviewFilter)}-900 dark:text-${getReviewModeBannerColor(reviewFilter)}-100`}>
+                    {getReviewModeTitle(reviewFilter)}
+                  </p>
+                  <p className={`text-sm text-${getReviewModeBannerColor(reviewFilter)}-700 dark:text-${getReviewModeBannerColor(reviewFilter)}-200`}>
+                    {getReviewModeDescription(reviewFilter)}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Domain Selector */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Select Domain (Optional)</CardTitle>
-            <CardDescription>Filter questions by CISA domain</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Select
-              value={selectedDomain?.toString() || "all"}
-              onValueChange={(value) => {
-                setSelectedDomain(value === "all" ? undefined : parseInt(value))
-              }}
-            >
-              <SelectTrigger className="w-full md:w-64">
-                <SelectValue placeholder="All Domains" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Domains</SelectItem>
-                {Object.entries(domainNames).map(([num, name]) => (
-                  <SelectItem key={num} value={num}>
-                    Domain {num}: {name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </CardContent>
-        </Card>
+        {!reviewFilter && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Select Domain (Optional)</CardTitle>
+              <CardDescription>Filter questions by CISA domain</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Select
+                value={selectedDomain?.toString() || "all"}
+                onValueChange={(value) => {
+                  setSelectedDomain(value === "all" ? undefined : parseInt(value))
+                }}
+              >
+                <SelectTrigger className="w-full md:w-64">
+                  <SelectValue placeholder="All Domains" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Domains</SelectItem>
+                  {Object.entries(domainNames).map(([num, name]) => (
+                    <SelectItem key={num} value={num}>
+                      Domain {num}: {name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Question Card */}
         <Card>

@@ -1,8 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useUser, useAuth } from "@clerk/nextjs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import {
   Select,
   SelectContent,
@@ -11,7 +13,8 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import Link from "next/link"
-import { BookOpen, Clock, Target, ArrowLeft, RotateCcw } from "lucide-react"
+import { BookOpen, Clock, Target, ArrowLeft, RotateCcw, Loader2 } from "lucide-react"
+import { getReviewCounts } from "@/lib/api"
 
 const domainNames: Record<number, string> = {
   1: "Information Systems Governance",
@@ -30,7 +33,31 @@ const domainShortNames: Record<number, string> = {
 }
 
 export default function StudyPage() {
+  const { user } = useUser()
+  const { getToken } = useAuth()
   const [selectedDomain, setSelectedDomain] = useState<string>("all")
+  const [reviewFilterType, setReviewFilterType] = useState<'all' | 'correct' | 'incorrect'>('incorrect')
+  const [reviewCounts, setReviewCounts] = useState({ total: 0, correct: 0, incorrect: 0 })
+  const [isLoadingCount, setIsLoadingCount] = useState(true)
+
+  useEffect(() => {
+    const loadReviewCounts = async () => {
+      if (!user?.id) return
+      
+      setIsLoadingCount(true)
+      try {
+        const token = await getToken()
+        const counts = await getReviewCounts(user.id, token)
+        setReviewCounts(counts)
+      } catch (error) {
+        console.error('Failed to load review counts:', error)
+      } finally {
+        setIsLoadingCount(false)
+      }
+    }
+
+    loadReviewCounts()
+  }, [user?.id, getToken])
 
   return (
     <div className="min-h-screen bg-background">
@@ -119,19 +146,66 @@ export default function StudyPage() {
             </CardContent>
           </Card>
 
-          {/* Revise Mode */}
+          {/* Review Mode */}
           <Card>
             <CardHeader>
-              <RotateCcw className="h-8 w-8 text-green-500 mb-2" />
-              <CardTitle>Revise</CardTitle>
-              <CardDescription>
-                Review your incorrect answers and improve
-              </CardDescription>
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <RotateCcw className="h-8 w-8 text-green-500 mb-2" />
+                  <CardTitle>Review Mode</CardTitle>
+                  <CardDescription>
+                    Review questions you've already answered
+                  </CardDescription>
+                </div>
+                {!isLoadingCount && reviewCounts.total > 0 && (
+                  <Badge variant="secondary" className="ml-2">
+                    {reviewCounts.total}
+                  </Badge>
+                )}
+              </div>
             </CardHeader>
-            <CardContent>
-              <Button disabled className="w-full" variant="outline">
-                Coming Soon
-              </Button>
+            <CardContent className="space-y-4">
+              {isLoadingCount ? (
+                <div className="flex items-center justify-center py-2">
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                </div>
+              ) : reviewCounts.total > 0 ? (
+                <>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Review:</label>
+                    <Select value={reviewFilterType} onValueChange={(value) => setReviewFilterType(value as 'all' | 'correct' | 'incorrect')}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">
+                          All Answers ({reviewCounts.total})
+                        </SelectItem>
+                        <SelectItem value="incorrect">
+                          Incorrect Only ({reviewCounts.incorrect})
+                        </SelectItem>
+                        <SelectItem value="correct">
+                          Correct Only ({reviewCounts.correct})
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button asChild className="w-full">
+                    <Link href={`/question?reviewFilter=${reviewFilterType}`}>
+                      Start Review
+                    </Link>
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm text-muted-foreground">
+                    No answers to review yet. Start practicing!
+                  </p>
+                  <Button disabled className="w-full" variant="outline">
+                    No Answers to Review
+                  </Button>
+                </>
+              )}
             </CardContent>
           </Card>
         </div>

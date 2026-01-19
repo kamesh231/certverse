@@ -9,33 +9,90 @@ export async function getQuestion(req: Request, res: Response): Promise<void> {
     const userId = (req as any).userId; // From verified JWT
     const userEmail = req.query.userEmail as string | undefined;
     const domain = req.query.domain as string | undefined;
+    
+    // Support both new reviewFilter and legacy incorrectOnly parameters
+    const reviewFilterParam = req.query.reviewFilter as 'all' | 'correct' | 'incorrect' | undefined;
+    const incorrectOnlyParam = req.query.incorrectOnly === 'true' || req.query.incorrectOnly === '1';
+    
+    // Determine effective review filter (reviewFilter takes precedence)
+    const reviewFilter = reviewFilterParam || (incorrectOnlyParam ? 'incorrect' : undefined);
 
     if (!userEmail) {
       res.status(400).json({ error: 'userEmail is required for watermarking' });
       return;
     }
 
-    // Check remaining questions before fetching
-    const remaining = await getRemainingQuestions(userId);
-    if (remaining <= 0) {
-      // Calculate reset time (midnight tomorrow)
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      tomorrow.setHours(0, 0, 0, 0);
-      
-      res.status(403).json({ 
-        error: 'Daily question limit reached',
-        message: 'You have reached your daily limit of 2 questions. Upgrade to Premium for unlimited access.',
-        remaining: 0,
-        resetsAt: tomorrow.toISOString()
-      });
-      return;
+    // Check remaining questions before fetching (skip check for review mode)
+    if (!reviewFilter) {
+      const remaining = await getRemainingQuestions(userId);
+      if (remaining <= 0) {
+        // Calculate reset time (midnight tomorrow)
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        tomorrow.setHours(0, 0, 0, 0);
+        
+        res.status(403).json({ 
+          error: 'Daily question limit reached',
+          message: 'You have reached your daily limit of 2 questions. Upgrade to Premium for unlimited access.',
+          remaining: 0,
+          resetsAt: tomorrow.toISOString()
+        });
+        return;
+      }
     }
 
-    // Build query with optional domain filter
+    let questionIds: string[] = [];
+
+    // If review mode, get question IDs based on filter
+    if (reviewFilter) {
+      let responsesQuery = supabase
+        .from('responses')
+        .select('question_id, correct')
+        .eq('user_id', userId);
+
+      // Filter by correct/incorrect if specified
+      if (reviewFilter === 'incorrect') {
+        responsesQuery = responsesQuery.eq('correct', false);
+      } else if (reviewFilter === 'correct') {
+        responsesQuery = responsesQuery.eq('correct', true);
+      }
+      // If 'all', don't filter by correct field
+
+      const { data: responses, error: responseError } = await responsesQuery;
+
+      if (responseError) {
+        logger.error('Error fetching user responses:', responseError);
+        res.status(500).json({ error: 'Failed to fetch user responses' });
+        return;
+      }
+
+      if (!responses || responses.length === 0) {
+        const message = reviewFilter === 'incorrect' 
+          ? 'You haven\'t answered any questions incorrectly yet. Keep practicing!'
+          : reviewFilter === 'correct'
+          ? 'You haven\'t answered any questions correctly yet. Keep practicing!'
+          : 'You haven\'t answered any questions yet. Start practicing!';
+        
+        res.status(404).json({ 
+          error: 'No answers found',
+          message
+        });
+        return;
+      }
+
+      // Get unique question IDs
+      questionIds = [...new Set(responses.map(r => r.question_id))];
+    }
+
+    // Build query with optional filters
     let query = supabase
       .from('questions')
       .select('*');
+
+    // Filter by question IDs if in review mode
+    if (reviewFilter && questionIds.length > 0) {
+      query = query.in('id', questionIds);
+    }
 
     // Filter by domain if provided
     if (domain) {
@@ -55,7 +112,10 @@ export async function getQuestion(req: Request, res: Response): Promise<void> {
     }
 
     if (!questions || questions.length === 0) {
-      res.status(404).json({ error: 'No questions available' });
+      const message = reviewFilter
+        ? 'No answers found for the selected criteria'
+        : 'No questions available';
+      res.status(404).json({ error: message });
       return;
     }
 
