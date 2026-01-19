@@ -30,7 +30,7 @@ router.get('/check', verifyAuth, async (req: Request, res: Response) => {
 const questionSchema = z.object({
   question_id: z.string().optional(),
   domain: z.number().min(1).max(5),
-  difficulty: z.enum(['Easy', 'Medium', 'Hard']).optional(),
+  difficulty: z.enum(['Easy', 'Medium', 'Hard', 'Expert']).optional(),
   topic: z.string().optional(),
   q_text: z.string().min(10),
   choice_a: z.string().min(1),
