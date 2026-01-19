@@ -41,7 +41,7 @@ export default function FirstQuestionStep({ onNext }: FirstQuestionStepProps) {
         return;
       }
 
-      const questionData = await fetchQuestion(user.id, userEmail, undefined, token);
+      const questionData = await fetchQuestion(user.id, userEmail, undefined, undefined, token);
       
       if (questionData && questionData.id) {
         setQuestion(questionData);
