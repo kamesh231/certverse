@@ -26,6 +26,7 @@ import {
 import logger from './lib/logger';
 import './lib/sentry'; // Initialize Sentry
 import * as onboardingController from './api/onboarding';
+import adminRoutes from './api/admin-upload';
 
 dotenv.config();
 
@@ -128,6 +129,9 @@ app.post('/api/submit-answer', verifyAuth, validateRequest(submitAnswerSchema), 
 app.post('/api/submit', verifyAuth, validateRequest(submitAnswerSchema), asyncHandler(async (req: Request, res: Response) => {
   await submitAnswer(req, res);
 }));
+
+// Admin routes (must be after verifyAuth middleware is defined)
+app.use('/api/admin', adminRoutes);
 
 // User history endpoint
 app.get('/api/history', verifyAuth, validateRequest(getUserHistorySchema, 'query'), asyncHandler(async (req: Request, res: Response) => {

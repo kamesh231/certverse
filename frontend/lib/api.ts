@@ -29,6 +29,16 @@ export interface Question {
   answer: string;
   explanation: string;
   created_at: string;
+  
+  // Metadata fields
+  question_id?: string;           // CISA-00001
+  difficulty?: 'Easy' | 'Medium' | 'Hard';  // For adaptive algorithm (not displayed to users)
+  topic?: string;                 // "IT Strategy Alignment"
+  reasoning?: string;
+  incorrect_rationale?: string;
+  enhanced_reasoning?: string;
+  
+  // Review mode fields
   isReviewMode?: boolean;
   userPreviousResponse?: {
     selectedChoice: string;
@@ -586,6 +596,40 @@ export async function getCustomerPortalUrl(userId: string, token?: string | null
     return data.url;
   } catch (error) {
     console.error('Error getting customer portal URL:', error);
+    throw error;
+  }
+}
+
+/**
+ * Upload questions (Admin only)
+ */
+export async function uploadQuestions(
+  questions: Partial<Question>[],
+  token: string | null
+): Promise<{ success: number; failed: number }> {
+  try {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${API_URL}/api/admin/upload-questions`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ questions }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Upload failed');
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error('Error uploading questions:', error);
     throw error;
   }
 }

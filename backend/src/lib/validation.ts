@@ -34,6 +34,8 @@ export const getQuestionSchema = z.object({
     if (!val) return false;
     return val === 'true' || val === '1';
   }),
+  // Difficulty filter for adaptive questioning (not displayed to users)
+  difficulty: z.enum(['Easy', 'Medium', 'Hard']).optional(),
 });
 
 // Get User History Schema (query params)

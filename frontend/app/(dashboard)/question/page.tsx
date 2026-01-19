@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Loader2, Lock, Clock, RotateCcw } from "lucide-react"
+import { Loader2, Lock, Clock, RotateCcw, BookOpen } from "lucide-react"
 import Link from "next/link"
 import { fetchQuestion, submitAnswer, getRemainingQuestions, Question, SubmitAnswerResponse } from "@/lib/api"
 import { CountdownTimer } from "@/components/countdown-timer"
@@ -410,6 +410,23 @@ export default function QuestionPage() {
               <div className="flex items-center justify-between mb-4">
                 <Badge variant="default">Domain {question.domain}</Badge>
               </div>
+              
+              {/* Question Metadata */}
+              <div className="flex items-center gap-2 mb-4 flex-wrap">
+                {question.topic && (
+                  <Badge variant="outline" className="gap-1">
+                    <BookOpen className="h-3 w-3" />
+                    {question.topic}
+                  </Badge>
+                )}
+                
+                {question.question_id && (
+                  <Badge variant="secondary" className="ml-auto">
+                    #{question.question_id}
+                  </Badge>
+                )}
+              </div>
+              
               <CardTitle className="text-xl leading-relaxed">
                 {question.q_text}
               </CardTitle>

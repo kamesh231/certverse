@@ -102,6 +102,12 @@ export async function getQuestion(req: Request, res: Response): Promise<void> {
       }
     }
 
+    // Filter by difficulty if provided (for adaptive questioning)
+    const difficulty = req.query.difficulty as string | undefined;
+    if (difficulty && ['Easy', 'Medium', 'Hard'].includes(difficulty)) {
+      query = query.eq('difficulty', difficulty);
+    }
+
     // Get questions (limit to 50 for performance)
     const { data: questions, error } = await query.limit(50);
 
