@@ -178,6 +178,8 @@ export async function downgradeSubscription(userId: string): Promise<void> {
       status: 'active',
       polar_customer_id: null,
       polar_subscription_id: null,
+      polar_price_id: null,
+      billing_interval: null,
       current_period_start: null,
       current_period_end: null,
       cancel_at: null,
