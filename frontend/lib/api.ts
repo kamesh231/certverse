@@ -32,7 +32,7 @@ export interface Question {
   
   // Metadata fields
   question_id?: string;           // CISA-00001
-  difficulty?: 'Easy' | 'Medium' | 'Hard';  // For adaptive algorithm (not displayed to users)
+  difficulty?: 'Easy' | 'Medium' | 'Hard' | 'Expert';  // For adaptive algorithm (not displayed to users)
   topic?: string;                 // "IT Strategy Alignment"
   reasoning?: string;
   incorrect_rationale?: string;
@@ -597,6 +597,31 @@ export async function getCustomerPortalUrl(userId: string, token?: string | null
   } catch (error) {
     console.error('Error getting customer portal URL:', error);
     throw error;
+  }
+}
+
+/**
+ * Check if current user is admin
+ */
+export async function checkAdminStatus(token: string | null): Promise<{ isAdmin: boolean; email: string | null }> {
+  try {
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${API_URL}/api/admin/check`, {
+      headers,
+    });
+
+    if (!response.ok) {
+      return { isAdmin: false, email: null };
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error('Error checking admin status:', error);
+    return { isAdmin: false, email: null };
   }
 }
 

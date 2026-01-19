@@ -1,13 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useUser, useAuth } from "@clerk/nextjs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Upload, CheckCircle, XCircle, Loader2, AlertTriangle, BookOpen } from "lucide-react"
-import { uploadQuestions, Question } from "@/lib/api"
+import { uploadQuestions, Question, checkAdminStatus } from "@/lib/api"
 import Papa from 'papaparse'
 
 interface ParsedQuestion extends Omit<Question, 'id' | 'created_at'> {
@@ -23,9 +23,39 @@ export default function AdminPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [uploadResult, setUploadResult] = useState<{ success: number; failed: number } | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [isAdmin, setIsAdmin] = useState<boolean>(false)
+  const [isCheckingAdmin, setIsCheckingAdmin] = useState(true)
 
-  // Check if user is admin (via Clerk publicMetadata or hardcoded check)
-  const isAdmin = user?.publicMetadata?.role === 'admin'
+  // Check admin status via API
+  useEffect(() => {
+    const verifyAdmin = async () => {
+      if (!user?.id) {
+        setIsCheckingAdmin(false)
+        return
+      }
+
+      try {
+        const token = await getToken()
+        const { isAdmin: adminStatus } = await checkAdminStatus(token)
+        setIsAdmin(adminStatus)
+      } catch (error) {
+        console.error('Failed to verify admin status:', error)
+        setIsAdmin(false)
+      } finally {
+        setIsCheckingAdmin(false)
+      }
+    }
+
+    verifyAdmin()
+  }, [user?.id, getToken])
+
+  if (isCheckingAdmin) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    )
+  }
 
   if (!isAdmin) {
     return (
@@ -286,7 +316,7 @@ export default function AdminPage() {
                       {q.difficulty && (
                         <Badge 
                           variant={
-                            q.difficulty === 'Hard' ? 'destructive' :
+                            q.difficulty === 'Hard' || q.difficulty === 'Expert' ? 'destructive' :
                             q.difficulty === 'Medium' ? 'default' :
                             'secondary'
                           }
@@ -407,7 +437,7 @@ export default function AdminPage() {
             <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
               <li><code>ID</code> - Question ID (e.g., CISA-00001)</li>
               <li><code>Domain</code> - Domain 1-5 (e.g., "Domain 2")</li>
-              <li><code>Difficulty</code> - Easy, Medium, or Hard</li>
+              <li><code>Difficulty</code> - Easy, Medium, Hard, or Expert</li>
               <li><code>Topic</code> - Topic name (e.g., "IT Strategy Alignment")</li>
               <li><code>Question</code> - The question text</li>
               <li><code>Option A</code>, <code>Option B</code>, <code>Option C</code>, <code>Option D</code> - Answer choices</li>
