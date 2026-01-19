@@ -59,39 +59,40 @@ export default function QuestionPage() {
       incorrectOptions?: { option: string; explanation: string }[]
     } = {}
 
-    // Extract Correct Answer section
-    const correctAnswerMatch = explanation.match(/✅ CORRECT ANSWER[^:]*:(.*?)(?=(?:COMPREHENSIVE EXPLANATION:|$))/is)
+    // Extract Correct Answer section (using [\s\S] instead of 's' flag for ES5 compatibility)
+    const correctAnswerMatch = explanation.match(/✅ CORRECT ANSWER[^:]*:([\s\S]*?)(?=(?:COMPREHENSIVE EXPLANATION:|$))/i)
     if (correctAnswerMatch) {
       sections.correctAnswer = correctAnswerMatch[1].trim()
     }
 
     // Extract Comprehensive Explanation
-    const comprehensiveMatch = explanation.match(/COMPREHENSIVE EXPLANATION:(.*?)(?=(?:REAL-WORLD EXAMPLE:|WHY THIS MATTERS:|❌ INCORRECT OPTIONS|$))/is)
+    const comprehensiveMatch = explanation.match(/COMPREHENSIVE EXPLANATION:([\s\S]*?)(?=(?:REAL-WORLD EXAMPLE:|WHY THIS MATTERS:|❌ INCORRECT OPTIONS|$))/i)
     if (comprehensiveMatch) {
       sections.comprehensiveExplanation = comprehensiveMatch[1].trim()
     }
 
     // Extract Real-world Example
-    const realWorldMatch = explanation.match(/REAL-WORLD EXAMPLE:(.*?)(?=(?:WHY THIS MATTERS:|❌ INCORRECT OPTIONS|$))/is)
+    const realWorldMatch = explanation.match(/REAL-WORLD EXAMPLE:([\s\S]*?)(?=(?:WHY THIS MATTERS:|❌ INCORRECT OPTIONS|$))/i)
     if (realWorldMatch) {
       sections.realWorldExample = realWorldMatch[1].trim()
     }
 
     // Extract Why This Matters
-    const whyMattersMatch = explanation.match(/WHY THIS MATTERS:(.*?)(?=(?:❌ INCORRECT OPTIONS|$))/is)
+    const whyMattersMatch = explanation.match(/WHY THIS MATTERS:([\s\S]*?)(?=(?:❌ INCORRECT OPTIONS|$))/i)
     if (whyMattersMatch) {
       sections.whyThisMatters = whyMattersMatch[1].trim()
     }
 
     // Extract Incorrect Options
-    const incorrectSectionMatch = explanation.match(/❌ INCORRECT OPTIONS.*?:(.*?)$/is)
+    const incorrectSectionMatch = explanation.match(/❌ INCORRECT OPTIONS[\s\S]*?:([\s\S]*?)$/)
     if (incorrectSectionMatch) {
       const incorrectText = incorrectSectionMatch[1]
       const options: { option: string; explanation: string }[] = []
       
       // Match Option A, B, C, D patterns
-      const optionMatches = incorrectText.matchAll(/Option\s+([A-D]):(.*?)(?=(?:Option\s+[A-D]:|→|$))/gis)
-      for (const match of optionMatches) {
+      const optionRegex = /Option\s+([A-D]):([\s\S]*?)(?=(?:Option\s+[A-D]:|→|$))/gi
+      let match
+      while ((match = optionRegex.exec(incorrectText)) !== null) {
         options.push({
           option: match[1],
           explanation: match[2].trim()
