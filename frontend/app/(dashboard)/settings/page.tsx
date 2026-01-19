@@ -94,6 +94,7 @@ export default function SettingsPage() {
   const [hasChanges, setHasChanges] = useState(false)
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'quarterly'>('monthly')
 
   useEffect(() => {
     async function loadData() {
@@ -273,6 +274,7 @@ export default function SettingsPage() {
       const checkoutUrl = await createCheckoutUrl(
         user.id,
         user.primaryEmailAddress.emailAddress,
+        billingPeriod,
         token
       )
       window.location.href = checkoutUrl
@@ -715,12 +717,43 @@ export default function SettingsPage() {
                   <div className="rounded-lg border-2 border-primary p-6 space-y-4">
                     <div className="flex items-center gap-2">
                       <Crown className="h-6 w-6 text-primary" />
-                      <h3 className="text-xl font-bold">Premium Plan</h3>
+                      <h3 className="text-xl font-bold">Choose Your Plan</h3>
                     </div>
-                    <div>
-                      <p className="text-3xl font-bold">$29</p>
-                      <p className="text-sm text-muted-foreground">per month</p>
+                    
+                    {/* Two billing options side by side */}
+                    <div className="grid grid-cols-2 gap-4">
+                      {/* Monthly Option */}
+                      <button
+                        onClick={() => setBillingPeriod('monthly')}
+                        className={`p-4 rounded-lg border-2 transition-all ${
+                          billingPeriod === 'monthly' 
+                            ? 'border-primary bg-primary/5' 
+                            : 'border-muted hover:border-primary/50'
+                        }`}
+                      >
+                        <div className="text-center">
+                          <p className="text-2xl font-bold">$29</p>
+                          <p className="text-sm text-muted-foreground">per month</p>
+                        </div>
+                      </button>
+                      
+                      {/* Quarterly Option */}
+                      <button
+                        onClick={() => setBillingPeriod('quarterly')}
+                        className={`p-4 rounded-lg border-2 transition-all relative ${
+                          billingPeriod === 'quarterly' 
+                            ? 'border-primary bg-primary/5' 
+                            : 'border-muted hover:border-primary/50'
+                        }`}
+                      >
+                        <Badge className="absolute -top-2 -right-2 bg-green-500 text-white">Save 32%</Badge>
+                        <div className="text-center">
+                          <p className="text-2xl font-bold">$59</p>
+                          <p className="text-sm text-muted-foreground">per 3 months</p>
+                        </div>
+                      </button>
                     </div>
+                    
                     <ul className="space-y-2 text-sm">
                       <li className="flex items-center gap-2">
                         <CheckCircle2 className="h-4 w-4 text-green-600" />
