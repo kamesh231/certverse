@@ -577,7 +577,11 @@ export default function SettingsPage() {
                           </Badge>
                         </div>
                         <p className="text-muted-foreground">
-                          {subscription?.plan_type === 'paid' ? '$29.00 / month' : '$0.00 / month'}
+                          {subscription?.plan_type === 'paid' 
+                            ? (subscription?.billing_interval === 'quarterly' 
+                                ? '$59.00 / 3 months' 
+                                : '$29.00 / month')
+                            : '$0.00 / month'}
                         </p>
 
                         {/* Show trial end date */}

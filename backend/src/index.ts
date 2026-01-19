@@ -92,14 +92,17 @@ app.get('/api/subscription', verifyAuth, asyncHandler(async (req: Request, res: 
 
 app.post('/api/checkout/create', verifyAuth, validateRequest(createCheckoutSchema), asyncHandler(async (req: Request, res: Response) => {
   const userId = (req as any).userId;
-  const { userEmail } = req.body;
+  const { userEmail, billingInterval } = req.body;
 
   if (!userEmail) {
     res.status(400).json({ error: 'userEmail is required' });
     return;
   }
 
-  const checkoutUrl = await createCheckout(userId, userEmail);
+  // Validate billingInterval (default to monthly if not provided or invalid)
+  const validInterval = billingInterval === 'quarterly' ? 'quarterly' : 'monthly';
+
+  const checkoutUrl = await createCheckout(userId, userEmail, validInterval);
   res.json({ url: checkoutUrl }); // Frontend expects 'url' field
 }));
 

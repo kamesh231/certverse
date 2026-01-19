@@ -30,6 +30,7 @@ export default function PricingPage() {
       const checkoutUrl = await createCheckoutUrl(
         user.id,
         user.primaryEmailAddress.emailAddress,
+        billingPeriod,
         token
       )
 

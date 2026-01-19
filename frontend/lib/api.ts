@@ -473,9 +473,11 @@ export interface Subscription {
   user_id: string;
   plan_type: 'free' | 'paid' | 'coach';
   status: 'active' | 'canceled' | 'past_due' | 'trialing';
+  billing_interval?: 'monthly' | 'quarterly';
   polar_customer_id: string | null;
   polar_subscription_id: string | null;
   polar_product_id: string | null;
+  polar_price_id?: string | null;
   current_period_start: string | null;
   current_period_end: string | null;
   cancel_at: string | null;
@@ -540,7 +542,12 @@ export async function getUserSubscription(userId: string, token?: string | null)
  * @param userEmail - User email
  * @param token - Clerk JWT token (required for authentication)
  */
-export async function createCheckoutUrl(userId: string, userEmail: string, token?: string | null): Promise<string> {
+export async function createCheckoutUrl(
+  userId: string, 
+  userEmail: string,
+  billingInterval: 'monthly' | 'quarterly' = 'monthly',
+  token?: string | null
+): Promise<string> {
   try {
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
@@ -553,7 +560,7 @@ export async function createCheckoutUrl(userId: string, userEmail: string, token
     const response = await fetch(`${API_URL}/api/checkout/create`, {
       method: 'POST',
       headers,
-      body: JSON.stringify({ userEmail }),
+      body: JSON.stringify({ userEmail, billingInterval }),
     });
 
     if (!response.ok) {

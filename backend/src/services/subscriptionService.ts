@@ -6,8 +6,10 @@ export interface Subscription {
   user_id: string;
   plan_type: 'free' | 'paid' | 'coach';
   status: 'active' | 'canceled' | 'past_due' | 'trialing';
+  billing_interval?: 'monthly' | 'quarterly';
   polar_customer_id?: string;
   polar_subscription_id?: string;
+  polar_price_id?: string;
   current_period_start?: string;
   current_period_end?: string;
   cancel_at?: string;
@@ -113,6 +115,8 @@ export async function upgradeSubscription(
     status?: string;
     trialStart?: string;
     trialEnd?: string;
+    billingInterval?: 'monthly' | 'quarterly';
+    polarPriceId?: string;
   }
 ): Promise<void> {
   logger.info('=== UPGRADE SUBSCRIPTION START ===');
@@ -120,6 +124,7 @@ export async function upgradeSubscription(
   logger.info(`Polar Customer ID: ${polarData.polarCustomerId}`);
   logger.info(`Polar Subscription ID: ${polarData.polarSubscriptionId}`);
   logger.info(`Status: ${polarData.status || 'active'}`);
+  logger.info(`Billing Interval: ${polarData.billingInterval || 'monthly'}`);
 
   const upsertData: any = {
     user_id: userId, // Required for upsert
@@ -129,6 +134,8 @@ export async function upgradeSubscription(
     polar_subscription_id: polarData.polarSubscriptionId,
     current_period_start: polarData.currentPeriodStart,
     current_period_end: polarData.currentPeriodEnd,
+    billing_interval: polarData.billingInterval || 'monthly',
+    polar_price_id: polarData.polarPriceId,
     updated_at: new Date().toISOString(),
   };
 
@@ -256,7 +263,11 @@ export async function getSubscriptionByPolarId(
 }
 
 // Create checkout URL for Polar
-export async function createCheckout(userId: string, userEmail: string): Promise<string> {
+export async function createCheckout(
+  userId: string, 
+  userEmail: string,
+  billingInterval: 'monthly' | 'quarterly' = 'monthly'
+): Promise<string> {
   const isSandbox = process.env.NODE_ENV !== 'production' || process.env.POLAR_SANDBOX === 'true';
   const apiBase = isSandbox
     ? 'https://sandbox-api.polar.sh'
@@ -267,12 +278,21 @@ export async function createCheckout(userId: string, userEmail: string): Promise
     throw new Error('POLAR_ACCESS_TOKEN environment variable is required');
   }
 
-  const productPriceId = process.env.POLAR_PRODUCT_PRICE_ID || '71f3d2c6-ce12-4cf8-8444-a922c2fd2469';
+  // Select price ID based on billing interval
+  const productPriceId = billingInterval === 'quarterly'
+    ? process.env.POLAR_QUARTERLY_PRICE_ID
+    : (process.env.POLAR_MONTHLY_PRICE_ID || process.env.POLAR_PRODUCT_PRICE_ID || '71f3d2c6-ce12-4cf8-8444-a922c2fd2469');
+
+  if (!productPriceId) {
+    throw new Error(`Missing price ID for ${billingInterval} billing`);
+  }
+
   const frontendUrl = process.env.FRONTEND_URL || 'https://certverse.vercel.app';
 
   // Check trial eligibility
   const isTrialEligible = await canOfferTrial(userId);
   logger.info(`User ${userId} trial eligibility: ${isTrialEligible}`);
+  logger.info(`Creating checkout for ${billingInterval} billing (price: ${productPriceId})`);
 
   // Create checkout session via Polar API
   const checkoutData = {
