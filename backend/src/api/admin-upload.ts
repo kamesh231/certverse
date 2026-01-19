@@ -6,6 +6,27 @@ import { z } from 'zod';
 
 const router = Router();
 
+/**
+ * GET /api/admin/check
+ * Check if current user is an admin
+ * Returns: { isAdmin: boolean, email: string }
+ */
+router.get('/check', verifyAuth, async (req: Request, res: Response) => {
+  const userEmail = (req as any).userEmail;
+  
+  if (!userEmail) {
+    return res.json({ isAdmin: false, email: null });
+  }
+  
+  const adminEmails = process.env.ADMIN_EMAILS?.split(',').map(e => e.trim()) || [];
+  const isAdmin = adminEmails.includes(userEmail);
+  
+  res.json({ 
+    isAdmin,
+    email: userEmail 
+  });
+});
+
 const questionSchema = z.object({
   question_id: z.string().optional(),
   domain: z.number().min(1).max(5),
@@ -32,14 +53,34 @@ const verifyAdmin = (req: Request, res: Response, next: Function) => {
   const userId = (req as any).userId;
   const userEmail = (req as any).userEmail;
   
-  logger.info(`Admin check for user: ${userEmail}`);
+  logger.info(`Admin check for user: ${userEmail} (userId: ${userId})`);
+  
+  // Check if email was successfully extracted
+  if (!userEmail) {
+    logger.error(`No email found for user ${userId}. Check Clerk configuration.`);
+    return res.status(403).json({ 
+      error: 'Forbidden: Could not verify email address',
+      details: 'Your account does not have an email address associated with it.'
+    });
+  }
   
   // Check if user email is in admin list
   const adminEmails = process.env.ADMIN_EMAILS?.split(',').map(e => e.trim()) || [];
   
+  if (adminEmails.length === 0) {
+    logger.error('ADMIN_EMAILS environment variable is not set!');
+    return res.status(403).json({ 
+      error: 'Forbidden: Admin access not configured',
+      details: 'Contact system administrator to configure admin access.'
+    });
+  }
+  
   if (!adminEmails.includes(userEmail)) {
-    logger.warn(`Access denied: ${userEmail} is not in admin list`);
-    return res.status(403).json({ error: 'Forbidden: Admin access required' });
+    logger.warn(`Access denied: ${userEmail} is not in admin list. Configured admins: ${adminEmails.join(', ')}`);
+    return res.status(403).json({ 
+      error: 'Forbidden: Admin access required',
+      details: `Your email (${userEmail}) is not authorized for admin access.`
+    });
   }
   
   logger.info(`Admin access granted for: ${userEmail}`);

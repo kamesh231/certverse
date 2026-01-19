@@ -2,11 +2,12 @@ import { Request, Response, NextFunction } from 'express';
 import { getClerkClient } from '../lib/clerk';
 import logger from '../lib/logger';
 
-// Extend Express Request type to include userId
+// Extend Express Request type to include userId and userEmail
 declare global {
   namespace Express {
     interface Request {
       userId?: string;
+      userEmail?: string;
     }
   }
 }
@@ -59,6 +60,24 @@ export async function verifyAuth(
 
     // Attach verified userId to request
     req.userId = decoded.sub;
+    
+    // Fetch user from Clerk to get email address
+    try {
+      const user = await clerk.users.getUser(decoded.sub);
+      
+      // Extract email from Clerk user object
+      const email = user.emailAddresses?.find(e => e.id === user.primaryEmailAddressId)?.emailAddress;
+      
+      if (email) {
+        req.userEmail = email;
+        logger.info(`User authenticated: ${decoded.sub} (${email})`);
+      } else {
+        logger.warn(`User ${decoded.sub} has no email address`);
+      }
+    } catch (userError: any) {
+      // Log but don't fail - userId is still valid
+      logger.warn(`Could not fetch user email for ${decoded.sub}:`, userError.message);
+    }
     
     next();
   } catch (error: any) {
