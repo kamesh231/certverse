@@ -75,7 +75,8 @@ app.post('/api/webhooks/polar',
 );
 
 // JSON body parser (after webhook route)
-app.use(express.json());
+// Increased limit to 50mb to support bulk question uploads (up to ~25,000 questions)
+app.use(express.json({ limit: '50mb' }));
 
 // Health check
 app.get('/health', (req: Request, res: Response) => {
