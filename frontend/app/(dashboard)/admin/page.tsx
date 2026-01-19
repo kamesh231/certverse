@@ -138,7 +138,6 @@ export default function AdminPage() {
         reasoning: values[getCol('Reasoning')],
         incorrect_rationale: values[getCol('Incorrect Rationale')],
         enhanced_reasoning,
-        created_at: new Date().toISOString(),
         errors: errors.length > 0 ? errors : undefined
       }
 
