@@ -658,21 +658,29 @@ export default function SettingsPage() {
                       </ul>
                     </div>
 
-                    {subscription?.plan_type === 'paid' && 
-                     subscription?.polar_customer_id && 
-                     subscription?.is_paid && (
+                    {subscription?.plan_type === 'paid' && subscription?.is_paid && (
                       <div className="mt-6">
                         <Button
                           className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
                           onClick={async () => {
                             try {
                               if (!user?.id) return;
-                              const token = await getToken()
-                              const portalUrl = await getCustomerPortalUrl(user.id, token);
-                              window.open(portalUrl, '_blank');
+                              
+                              // If has Polar customer ID, use pre-authenticated portal (best UX)
+                              if (subscription?.polar_customer_id) {
+                                const token = await getToken()
+                                const portalUrl = await getCustomerPortalUrl(user.id, token);
+                                window.open(portalUrl, '_blank');
+                              } else {
+                                // Fallback: Direct link to portal (user enters email)
+                                const orgSlug = process.env.NEXT_PUBLIC_POLAR_ORG_SLUG || 'schedlynksandbox';
+                                window.open(`https://polar.sh/${orgSlug}/portal`, '_blank');
+                              }
                             } catch (error) {
-                              console.error('Failed to get portal URL:', error);
-                              alert('Unable to open customer portal. Please try again later.');
+                              console.error('Failed to open customer portal:', error);
+                              // On error, fallback to direct link
+                              const orgSlug = process.env.NEXT_PUBLIC_POLAR_ORG_SLUG || 'schedlynksandbox';
+                              window.open(`https://polar.sh/${orgSlug}/portal`, '_blank');
                             }
                           }}
                         >
