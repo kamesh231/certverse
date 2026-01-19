@@ -139,7 +139,27 @@ export async function getQuestion(req: Request, res: Response): Promise<void> {
       userEmail
     );
 
-    res.json({
+    // If in review mode, include user's previous response
+    let userPreviousResponse = null;
+    if (reviewFilter) {
+      const { data: previousResponses } = await supabase
+        .from('responses')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('question_id', randomQuestion.id)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      
+      if (previousResponses && previousResponses.length > 0) {
+        userPreviousResponse = {
+          selectedChoice: previousResponses[0].selected_choice,
+          wasCorrect: previousResponses[0].correct,
+          answeredAt: previousResponses[0].created_at,
+        };
+      }
+    }
+
+    const responseData: any = {
       id: watermarkedQuestion.id,
       domain: randomQuestion.domain,
       q_text: watermarkedQuestion.q_text,
@@ -147,7 +167,17 @@ export async function getQuestion(req: Request, res: Response): Promise<void> {
       choice_b: watermarkedQuestion.choice_b,
       choice_c: watermarkedQuestion.choice_c,
       choice_d: watermarkedQuestion.choice_d,
-    });
+      answer: randomQuestion.answer,
+      explanation: randomQuestion.explanation,
+    };
+
+    // Include previous response data if in review mode
+    if (reviewFilter && userPreviousResponse) {
+      responseData.userPreviousResponse = userPreviousResponse;
+      responseData.isReviewMode = true;
+    }
+
+    res.json(responseData);
   } catch (error) {
     logger.error('Error in getQuestion:', error);
     res.status(500).json({ error: 'Internal server error' });

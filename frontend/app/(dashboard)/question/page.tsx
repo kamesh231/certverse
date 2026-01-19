@@ -34,6 +34,11 @@ export default function QuestionPage() {
   const [isLimitReached, setIsLimitReached] = useState(false)
   const [resetsAt, setResetsAt] = useState<string | null>(null)
   
+  // Review mode tracking
+  const [reviewedQuestions, setReviewedQuestions] = useState<Set<string>>(new Set())
+  const [totalReviewQuestions, setTotalReviewQuestions] = useState<number>(0)
+  const [isReviewComplete, setIsReviewComplete] = useState(false)
+  
   // Check if we're in review mode from URL (support both new and legacy parameters)
   const reviewFilterParam = searchParams?.get('reviewFilter') as 'all' | 'correct' | 'incorrect' | null
   const incorrectOnlyParam = searchParams?.get('incorrectOnly') === 'true'
@@ -73,6 +78,19 @@ export default function QuestionPage() {
         : undefined
       
       const newQuestion = await fetchQuestion(user.id, userEmail, domain, reviewFilter || undefined, token)
+      
+      // Track this question as reviewed
+      if (reviewFilter && newQuestion.id) {
+        const newReviewedSet = new Set(reviewedQuestions)
+        newReviewedSet.add(newQuestion.id)
+        setReviewedQuestions(newReviewedSet)
+        
+        // Check if review is complete
+        if (totalReviewQuestions > 0 && newReviewedSet.size >= totalReviewQuestions) {
+          setIsReviewComplete(true)
+        }
+      }
+      
       setQuestion(newQuestion)
       setSelectedChoice(null)
       setResult(null)
@@ -107,6 +125,29 @@ export default function QuestionPage() {
       setIsLoading(false)
     }
   }
+
+  // Load total review questions count when entering review mode
+  useEffect(() => {
+    const loadReviewCount = async () => {
+      if (reviewFilter && user?.id) {
+        try {
+          const token = await getToken()
+          const { getReviewCounts } = await import('@/lib/api')
+          const counts = await getReviewCounts(user.id, token)
+          
+          // Set total based on filter type
+          const total = reviewFilter === 'all' ? counts.total :
+                       reviewFilter === 'correct' ? counts.correct :
+                       counts.incorrect
+          setTotalReviewQuestions(total)
+        } catch (error) {
+          console.error('Failed to load review count:', error)
+        }
+      }
+    }
+    
+    loadReviewCount()
+  }, [reviewFilter, user?.id, getToken])
 
   useEffect(() => {
     if (user?.id) {
@@ -263,23 +304,77 @@ export default function QuestionPage() {
         {reviewFilter && (
           <Card className={`border-${getReviewModeBannerColor(reviewFilter)}-500 bg-${getReviewModeBannerColor(reviewFilter)}-50 dark:bg-${getReviewModeBannerColor(reviewFilter)}-950/30`}>
             <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <RotateCcw className={`h-5 w-5 text-${getReviewModeBannerColor(reviewFilter)}-600 dark:text-${getReviewModeBannerColor(reviewFilter)}-400`} />
-                <div>
-                  <p className={`font-semibold text-${getReviewModeBannerColor(reviewFilter)}-900 dark:text-${getReviewModeBannerColor(reviewFilter)}-100`}>
-                    {getReviewModeTitle(reviewFilter)}
-                  </p>
-                  <p className={`text-sm text-${getReviewModeBannerColor(reviewFilter)}-700 dark:text-${getReviewModeBannerColor(reviewFilter)}-200`}>
-                    {getReviewModeDescription(reviewFilter)}
-                  </p>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <RotateCcw className={`h-5 w-5 text-${getReviewModeBannerColor(reviewFilter)}-600 dark:text-${getReviewModeBannerColor(reviewFilter)}-400`} />
+                  <div>
+                    <p className={`font-semibold text-${getReviewModeBannerColor(reviewFilter)}-900 dark:text-${getReviewModeBannerColor(reviewFilter)}-100`}>
+                      {getReviewModeTitle(reviewFilter)}
+                    </p>
+                    <p className={`text-sm text-${getReviewModeBannerColor(reviewFilter)}-700 dark:text-${getReviewModeBannerColor(reviewFilter)}-200`}>
+                      {getReviewModeDescription(reviewFilter)}
+                    </p>
+                  </div>
                 </div>
+                {totalReviewQuestions > 0 && (
+                  <Badge variant="secondary" className="ml-auto">
+                    Question {reviewedQuestions.size} of {totalReviewQuestions}
+                  </Badge>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Review Complete State */}
+        {isReviewComplete && reviewFilter && (
+          <Card className="border-green-500 bg-green-50 dark:bg-green-950/30">
+            <CardHeader>
+              <div className="flex flex-col items-center text-center space-y-4">
+                <div className="h-16 w-16 rounded-full bg-green-500 flex items-center justify-center">
+                  <svg className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <div>
+                  <CardTitle className="text-2xl text-green-900 dark:text-green-100">
+                    Review Complete!
+                  </CardTitle>
+                  <CardDescription className="mt-2 text-green-700 dark:text-green-200">
+                    You've reviewed all {totalReviewQuestions} questions in this set
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button 
+                  onClick={() => {
+                    setReviewedQuestions(new Set())
+                    setIsReviewComplete(false)
+                    loadQuestion()
+                  }}
+                  className="flex-1 gap-2"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  Start Over
+                </Button>
+                <Button 
+                  asChild
+                  variant="outline"
+                  className="flex-1"
+                >
+                  <Link href="/study">
+                    Back to Study Modes
+                  </Link>
+                </Button>
               </div>
             </CardContent>
           </Card>
         )}
 
         {/* Domain Selector */}
-        {!reviewFilter && (
+        {!reviewFilter && !isReviewComplete && (
           <Card>
             <CardHeader>
               <CardTitle>Select Domain (Optional)</CardTitle>
@@ -309,18 +404,102 @@ export default function QuestionPage() {
         )}
 
         {/* Question Card */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between mb-4">
-              <Badge variant="default">Domain {question.domain}</Badge>
-            </div>
-            <CardTitle className="text-xl leading-relaxed">
-              {question.q_text}
-            </CardTitle>
-          </CardHeader>
+        {!isReviewComplete && (
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between mb-4">
+                <Badge variant="default">Domain {question.domain}</Badge>
+              </div>
+              <CardTitle className="text-xl leading-relaxed">
+                {question.q_text}
+              </CardTitle>
+            </CardHeader>
 
-          <CardContent className="space-y-4">
-            {!result ? (
+            <CardContent className="space-y-4">
+              {/* Review Mode: Show previous answer */}
+              {question.isReviewMode && question.userPreviousResponse ? (
+                <div className="space-y-4">
+                  <div className="p-4 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
+                    <p className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-2">
+                      Your Previous Answer:
+                    </p>
+                    <p className="text-lg font-semibold">
+                      {question.userPreviousResponse.wasCorrect ? (
+                        <span className="text-green-600 dark:text-green-400">
+                          ✓ {question.userPreviousResponse.selectedChoice} (Correct)
+                        </span>
+                      ) : (
+                        <span className="text-red-600 dark:text-red-400">
+                          ✗ {question.userPreviousResponse.selectedChoice} (Incorrect)
+                        </span>
+                      )}
+                    </p>
+                  </div>
+
+                  <div className="space-y-3">
+                    {choices.map((choice) => {
+                      const isUserChoice = choice.value === question.userPreviousResponse?.selectedChoice
+                      const isCorrectAnswer = choice.value === question.answer
+                      
+                      return (
+                        <div
+                          key={choice.value}
+                          className={`w-full p-4 rounded-lg border-2 ${
+                            isCorrectAnswer
+                              ? "border-green-500 bg-green-50 dark:bg-green-950/30"
+                              : isUserChoice && !question.userPreviousResponse?.wasCorrect
+                              ? "border-red-500 bg-red-50 dark:bg-red-950/30"
+                              : "border-border bg-muted/30"
+                          }`}
+                        >
+                          <div className="flex items-start gap-3">
+                            <span
+                              className={`flex-shrink-0 w-8 h-8 rounded-full font-semibold flex items-center justify-center ${
+                                isCorrectAnswer
+                                  ? "bg-green-500 text-white"
+                                  : isUserChoice && !question.userPreviousResponse?.wasCorrect
+                                  ? "bg-red-500 text-white"
+                                  : "bg-muted text-muted-foreground"
+                              }`}
+                            >
+                              {choice.value}
+                            </span>
+                            <span className="flex-1">{choice.text}</span>
+                            {isCorrectAnswer && (
+                              <span className="text-green-600 dark:text-green-400 font-semibold whitespace-nowrap">
+                                ✓ Correct Answer
+                              </span>
+                            )}
+                            {isUserChoice && !isCorrectAnswer && (
+                              <span className="text-red-600 dark:text-red-400 font-semibold whitespace-nowrap">
+                                Your Choice
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+
+                  {question.explanation && (
+                    <div className="p-4 bg-muted rounded-lg">
+                      <h4 className="font-semibold mb-2">Explanation:</h4>
+                      <p className="text-sm text-muted-foreground">{question.explanation}</p>
+                    </div>
+                  )}
+
+                  <Button onClick={handleNext} className="w-full" disabled={isLoading}>
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Loading Next Question...
+                      </>
+                    ) : (
+                      "Next Question"
+                    )}
+                  </Button>
+                </div>
+              ) : !result ? (
               <>
                 <div className="space-y-3">
                   {choices.map((choice) => (
@@ -411,6 +590,7 @@ export default function QuestionPage() {
             )}
           </CardContent>
         </Card>
+        )}
 
         {error && result && (
           <Card className="border-destructive">

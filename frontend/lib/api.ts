@@ -29,6 +29,12 @@ export interface Question {
   answer: string;
   explanation: string;
   created_at: string;
+  isReviewMode?: boolean;
+  userPreviousResponse?: {
+    selectedChoice: string;
+    wasCorrect: boolean;
+    answeredAt: string;
+  };
 }
 
 export interface SubmitAnswerResponse {
@@ -331,28 +337,32 @@ export async function getReviewCounts(
 
     const history = await getUserHistory(userId, 100, token);
     
-    // Get unique question IDs for each category
-    const incorrectQuestionIds = new Set(
-      history
-        .filter(response => !response.correct)
-        .map(response => response.question_id)
-    );
+    // Group responses by question_id and get most recent response for each
+    const latestResponsesByQuestion = new Map<string, UserResponse>();
     
-    const correctQuestionIds = new Set(
-      history
-        .filter(response => response.correct)
-        .map(response => response.question_id)
-    );
+    // History is already sorted by created_at desc, so first occurrence is most recent
+    history.forEach(response => {
+      if (!latestResponsesByQuestion.has(response.question_id)) {
+        latestResponsesByQuestion.set(response.question_id, response);
+      }
+    });
     
-    // Total unique questions answered
-    const totalQuestionIds = new Set(
-      history.map(response => response.question_id)
-    );
+    // Count based on most recent attempt for each question
+    let correctCount = 0;
+    let incorrectCount = 0;
+    
+    latestResponsesByQuestion.forEach(response => {
+      if (response.correct) {
+        correctCount++;
+      } else {
+        incorrectCount++;
+      }
+    });
 
     return {
-      total: totalQuestionIds.size,
-      correct: correctQuestionIds.size,
-      incorrect: incorrectQuestionIds.size,
+      total: latestResponsesByQuestion.size,
+      correct: correctCount,
+      incorrect: incorrectCount,
     };
   } catch (error) {
     console.error('Error fetching review counts:', error);
