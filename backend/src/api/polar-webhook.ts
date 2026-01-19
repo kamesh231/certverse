@@ -12,14 +12,15 @@ import {
 } from '../services/subscriptionService';
 
 /**
- * Extract billing interval from Polar price object
- * Polar sends: recurring_interval='month' and recurring_interval_count=1 or 3
+ * Extract billing interval from Polar subscription data
+ * Polar sends: recurringInterval='month' and recurringIntervalCount=1 or 3 at top level
  */
-function extractBillingInterval(price: any): 'monthly' | 'quarterly' {
-  if (!price) return 'monthly';
+function extractBillingInterval(subscriptionData: any): 'monthly' | 'quarterly' {
+  if (!subscriptionData) return 'monthly';
   
-  const interval = price.recurring_interval;
-  const count = price.recurring_interval_count || 1;
+  // Polar sends recurring interval at the top level of subscription object
+  const interval = subscriptionData.recurringInterval;
+  const count = subscriptionData.recurringIntervalCount || 1;
   
   // If interval is 'month' and count is 3, it's quarterly
   if (interval === 'month' && count === 3) {
@@ -98,12 +99,12 @@ export async function handlePolarWebhook(req: Request, res: Response): Promise<v
       logger.info('========================================');
       logger.info(`Direct user_id from metadata: ${webhookData.metadata.user_id}`);
 
-      // Extract billing interval from Polar price data
-      const price = webhookData.price;
-      const billingInterval = extractBillingInterval(price);
+      // Extract billing interval from Polar subscription data
+      const billingInterval = extractBillingInterval(webhookData);
       
       logger.info(`Billing interval: ${billingInterval}`);
-      logger.info(`Price ID: ${price?.id}`);
+      logger.info(`Recurring interval: ${webhookData.recurringInterval}, count: ${webhookData.recurringIntervalCount}`);
+      logger.info(`Price IDs: ${webhookData.prices?.map((p: any) => p.id).join(', ')}`);
 
       // Directly use metadata user_id
       await upgradeSubscription(webhookData.metadata.user_id, {
@@ -115,7 +116,7 @@ export async function handlePolarWebhook(req: Request, res: Response): Promise<v
         trialStart: webhookData.trial_start,
         trialEnd: webhookData.trial_end,
         billingInterval,
-        polarPriceId: price?.id,
+        polarPriceId: webhookData.prices?.[0]?.id,
       });
 
       logger.info(`✅ Processed subscription.created directly from metadata`);
@@ -283,11 +284,11 @@ async function handleSubscriptionUpdated(data: any): Promise<void> {
   }
 
   // Extract billing interval in case user changed plans
-  const price = data.price;
-  const billingInterval = extractBillingInterval(price);
+  const billingInterval = extractBillingInterval(data);
   
   logger.info(`Updating existing subscription for user ${subscription.user_id}`);
   logger.info(`Updating billing interval to: ${billingInterval}`);
+  logger.info(`Recurring interval: ${data.recurringInterval}, count: ${data.recurringIntervalCount}`);
 
   // Update subscription with new billing interval (handles plan changes)
   // Need to use supabase directly to update billing_interval
@@ -298,7 +299,7 @@ async function handleSubscriptionUpdated(data: any): Promise<void> {
       status: data.status,
       current_period_end: data.current_period_end,
       billing_interval: billingInterval,
-      polar_price_id: price?.id,
+      polar_price_id: data.prices?.[0]?.id,
       updated_at: new Date().toISOString(),
     })
     .eq('user_id', subscription.user_id);
