@@ -673,14 +673,18 @@ export default function SettingsPage() {
                                 window.open(portalUrl, '_blank');
                               } else {
                                 // Fallback: Direct link to portal (user enters email)
+                                const isSandbox = process.env.NEXT_PUBLIC_POLAR_SANDBOX === 'true';
+                                const portalDomain = isSandbox ? 'sandbox.polar.sh' : 'polar.sh';
                                 const orgSlug = process.env.NEXT_PUBLIC_POLAR_ORG_SLUG || 'schedlynksandbox';
-                                window.open(`https://polar.sh/${orgSlug}/portal`, '_blank');
+                                window.open(`https://${portalDomain}/${orgSlug}/portal`, '_blank');
                               }
                             } catch (error) {
                               console.error('Failed to open customer portal:', error);
                               // On error, fallback to direct link
+                              const isSandbox = process.env.NEXT_PUBLIC_POLAR_SANDBOX === 'true';
+                              const portalDomain = isSandbox ? 'sandbox.polar.sh' : 'polar.sh';
                               const orgSlug = process.env.NEXT_PUBLIC_POLAR_ORG_SLUG || 'schedlynksandbox';
-                              window.open(`https://polar.sh/${orgSlug}/portal`, '_blank');
+                              window.open(`https://${portalDomain}/${orgSlug}/portal`, '_blank');
                             }
                           }}
                         >

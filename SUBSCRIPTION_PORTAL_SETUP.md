@@ -24,11 +24,14 @@ Add to your **`frontend/.env.local`** file:
 ```bash
 # Polar Organization Slug
 NEXT_PUBLIC_POLAR_ORG_SLUG=schedlynksandbox
+
+# Polar Environment (true for sandbox, false or omit for production)
+NEXT_PUBLIC_POLAR_SANDBOX=true
 ```
 
 ### Production Deployment (Vercel)
 
-When deploying to production, update the environment variable:
+When deploying to production, update the environment variables:
 
 **Vercel Dashboard:**
 1. Go to your project settings
@@ -36,6 +39,10 @@ When deploying to production, update the environment variable:
 3. Add or update:
    - **Name:** `NEXT_PUBLIC_POLAR_ORG_SLUG`
    - **Value:** `your-production-org-slug` (replace `schedlynksandbox`)
+   - **Environment:** Production
+   
+   - **Name:** `NEXT_PUBLIC_POLAR_SANDBOX`
+   - **Value:** `false` (or leave empty for production)
    - **Environment:** Production
 
 ---
@@ -54,11 +61,13 @@ if (subscription?.polar_customer_id) {
 
 // 2. Fallback: Direct link (user enters email)
 else {
+  const isSandbox = process.env.NEXT_PUBLIC_POLAR_SANDBOX === 'true';
+  const portalDomain = isSandbox ? 'sandbox.polar.sh' : 'polar.sh';
   const orgSlug = process.env.NEXT_PUBLIC_POLAR_ORG_SLUG || 'schedlynksandbox';
-  window.open(`https://polar.sh/${orgSlug}/portal`, '_blank');
+  window.open(`https://${portalDomain}/${orgSlug}/portal`, '_blank');
 }
 
-// 3. Error handling: Also falls back to direct link
+// 3. Error handling: Also falls back to direct link with sandbox awareness
 ```
 
 ### Button Display Conditions
@@ -191,6 +200,7 @@ User enters email and continues
 ```bash
 # frontend/.env.local
 NEXT_PUBLIC_POLAR_ORG_SLUG=schedlynksandbox
+NEXT_PUBLIC_POLAR_SANDBOX=true
 NEXT_PUBLIC_API_URL=http://localhost:3001
 ```
 
@@ -198,6 +208,7 @@ NEXT_PUBLIC_API_URL=http://localhost:3001
 ```bash
 # Vercel Environment Variables
 NEXT_PUBLIC_POLAR_ORG_SLUG=schedlynksandbox
+NEXT_PUBLIC_POLAR_SANDBOX=true
 NEXT_PUBLIC_API_URL=https://your-staging-api.railway.app
 ```
 
@@ -205,6 +216,7 @@ NEXT_PUBLIC_API_URL=https://your-staging-api.railway.app
 ```bash
 # Vercel Environment Variables
 NEXT_PUBLIC_POLAR_ORG_SLUG=your-production-org-slug
+NEXT_PUBLIC_POLAR_SANDBOX=false
 NEXT_PUBLIC_API_URL=https://your-production-api.railway.app
 ```
 
@@ -265,8 +277,15 @@ console.log('Subscription:', {
 3. Browser console for errors?
 
 **Test Direct Link:**
+
+For sandbox:
 ```
-https://polar.sh/schedlynksandbox/portal
+https://sandbox.polar.sh/schedlynksandbox/portal
+```
+
+For production:
+```
+https://polar.sh/your-production-org-slug/portal
 ```
 
 Should open Polar portal login page.

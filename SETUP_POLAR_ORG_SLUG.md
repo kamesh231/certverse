@@ -2,10 +2,11 @@
 
 ## Action Required
 
-Add this line to your **`frontend/.env.local`** file:
+Add these lines to your **`frontend/.env.local`** file:
 
 ```bash
 NEXT_PUBLIC_POLAR_ORG_SLUG=schedlynksandbox
+NEXT_PUBLIC_POLAR_SANDBOX=true
 ```
 
 ## File Location
@@ -16,11 +17,17 @@ frontend/.env.local
 
 ## For Production (Vercel)
 
-When deploying to production, add this environment variable in Vercel:
+When deploying to production, add these environment variables in Vercel:
 
-**Name:** `NEXT_PUBLIC_POLAR_ORG_SLUG`  
-**Value:** `your-production-org-slug` (replace schedlynksandbox)  
-**Environment:** Production
+**1. Organization Slug:**
+- **Name:** `NEXT_PUBLIC_POLAR_ORG_SLUG`  
+- **Value:** `your-production-org-slug` (replace schedlynksandbox)  
+- **Environment:** Production
+
+**2. Sandbox Mode:**
+- **Name:** `NEXT_PUBLIC_POLAR_SANDBOX`  
+- **Value:** `false`  
+- **Environment:** Production
 
 ---
 
