@@ -17,6 +17,7 @@ export default function Home() {
   const [showWaitlistForm, setShowWaitlistForm] = useState(false)
   const [waitlistEmail, setWaitlistEmail] = useState('')
   const [waitlistSubmitted, setWaitlistSubmitted] = useState(false)
+  const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'quarterly'>('monthly')
 
   useEffect(() => {
     if (isLoaded && user) {
@@ -179,6 +180,28 @@ export default function Home() {
             </p>
           </div>
 
+          {/* Billing Period Toggle */}
+          <div className="flex justify-center mb-12">
+            <div className="inline-flex items-center bg-muted p-1 rounded-lg">
+              <Button
+                variant={billingPeriod === 'monthly' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setBillingPeriod('monthly')}
+              >
+                Monthly
+              </Button>
+              <Button
+                variant={billingPeriod === 'quarterly' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setBillingPeriod('quarterly')}
+                className="relative"
+              >
+                Quarterly
+                <Badge className="ml-2 bg-green-500 text-white text-xs">Save 32%</Badge>
+              </Button>
+            </div>
+          </div>
+
           <div className="grid gap-8 md:grid-cols-3">
             {/* Free Plan */}
             <Card className="animate-fade-in-up">
@@ -225,8 +248,8 @@ export default function Home() {
                 <CardTitle className="text-2xl">Premium</CardTitle>
                 <CardDescription>Everything you need to pass</CardDescription>
                 <div className="mt-4">
-                  <span className="text-4xl font-bold">$29</span>
-                  <span className="text-muted-foreground ml-2">per month</span>
+                  <span className="text-4xl font-bold">{billingPeriod === 'monthly' ? '$29' : '$59'}</span>
+                  <span className="text-muted-foreground ml-2">{billingPeriod === 'monthly' ? 'per month' : 'per 3 months'}</span>
                 </div>
               </CardHeader>
               <CardContent>
