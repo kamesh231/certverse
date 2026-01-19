@@ -7,9 +7,9 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Loader2, Lock, Clock, RotateCcw, BookOpen } from "lucide-react"
+import { Loader2, Lock, Clock, RotateCcw, BookOpen, Crown, Sparkles } from "lucide-react"
 import Link from "next/link"
-import { fetchQuestion, submitAnswer, getRemainingQuestions, Question, SubmitAnswerResponse } from "@/lib/api"
+import { fetchQuestion, submitAnswer, getRemainingQuestions, getUserSubscription, Question, SubmitAnswerResponse, Subscription } from "@/lib/api"
 import { CountdownTimer } from "@/components/countdown-timer"
 
 const domainNames: Record<number, string> = {
@@ -39,12 +39,70 @@ export default function QuestionPage() {
   const [totalReviewQuestions, setTotalReviewQuestions] = useState<number>(0)
   const [isReviewComplete, setIsReviewComplete] = useState(false)
   
+  // Subscription tracking
+  const [subscription, setSubscription] = useState<Subscription | null>(null)
+  
   // Check if we're in review mode from URL (support both new and legacy parameters)
   const reviewFilterParam = searchParams?.get('reviewFilter') as 'all' | 'correct' | 'incorrect' | null
   const incorrectOnlyParam = searchParams?.get('incorrectOnly') === 'true'
   
   // Determine effective review filter
   const reviewFilter = reviewFilterParam || (incorrectOnlyParam ? 'incorrect' : null)
+  
+  // Helper function to parse explanation sections
+  const parseExplanation = (explanation: string) => {
+    const sections: {
+      correctAnswer?: string
+      comprehensiveExplanation?: string
+      realWorldExample?: string
+      whyThisMatters?: string
+      incorrectOptions?: { option: string; explanation: string }[]
+    } = {}
+
+    // Extract Correct Answer section
+    const correctAnswerMatch = explanation.match(/✅ CORRECT ANSWER[^:]*:(.*?)(?=(?:COMPREHENSIVE EXPLANATION:|$))/is)
+    if (correctAnswerMatch) {
+      sections.correctAnswer = correctAnswerMatch[1].trim()
+    }
+
+    // Extract Comprehensive Explanation
+    const comprehensiveMatch = explanation.match(/COMPREHENSIVE EXPLANATION:(.*?)(?=(?:REAL-WORLD EXAMPLE:|WHY THIS MATTERS:|❌ INCORRECT OPTIONS|$))/is)
+    if (comprehensiveMatch) {
+      sections.comprehensiveExplanation = comprehensiveMatch[1].trim()
+    }
+
+    // Extract Real-world Example
+    const realWorldMatch = explanation.match(/REAL-WORLD EXAMPLE:(.*?)(?=(?:WHY THIS MATTERS:|❌ INCORRECT OPTIONS|$))/is)
+    if (realWorldMatch) {
+      sections.realWorldExample = realWorldMatch[1].trim()
+    }
+
+    // Extract Why This Matters
+    const whyMattersMatch = explanation.match(/WHY THIS MATTERS:(.*?)(?=(?:❌ INCORRECT OPTIONS|$))/is)
+    if (whyMattersMatch) {
+      sections.whyThisMatters = whyMattersMatch[1].trim()
+    }
+
+    // Extract Incorrect Options
+    const incorrectSectionMatch = explanation.match(/❌ INCORRECT OPTIONS.*?:(.*?)$/is)
+    if (incorrectSectionMatch) {
+      const incorrectText = incorrectSectionMatch[1]
+      const options: { option: string; explanation: string }[] = []
+      
+      // Match Option A, B, C, D patterns
+      const optionMatches = incorrectText.matchAll(/Option\s+([A-D]):(.*?)(?=(?:Option\s+[A-D]:|→|$))/gis)
+      for (const match of optionMatches) {
+        options.push({
+          option: match[1],
+          explanation: match[2].trim()
+        })
+      }
+      
+      sections.incorrectOptions = options
+    }
+
+    return sections
+  }
   
   // Get domain from URL if provided
   useEffect(() => {
@@ -56,6 +114,41 @@ export default function QuestionPage() {
       }
     }
   }, [searchParams])
+
+  // Load user subscription status
+  useEffect(() => {
+    const loadSubscription = async () => {
+      if (!user?.id) return
+      
+      try {
+        const token = await getToken()
+        const subscriptionData = await getUserSubscription(user.id, token)
+        setSubscription(subscriptionData)
+      } catch (error) {
+        console.error('Failed to load subscription:', error)
+        // Set default free subscription if fetch fails
+        setSubscription({
+          id: '',
+          user_id: user.id,
+          plan_type: 'free',
+          status: 'active',
+          polar_customer_id: null,
+          polar_subscription_id: null,
+          polar_product_id: null,
+          current_period_start: null,
+          current_period_end: null,
+          cancel_at: null,
+          canceled_at: null,
+          started_at: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          is_paid: false
+        })
+      }
+    }
+
+    loadSubscription()
+  }, [user?.id, getToken])
 
   const loadQuestion = async () => {
     if (!user?.id || !user?.primaryEmailAddress?.emailAddress) {
@@ -586,12 +679,143 @@ export default function QuestionPage() {
                   })}
                 </div>
 
-                {result.explanation && (
-                  <div className="p-4 bg-muted rounded-lg">
-                    <h4 className="font-semibold mb-2">Explanation:</h4>
-                    <p className="text-sm text-muted-foreground">{result.explanation}</p>
-                  </div>
-                )}
+                {result.explanation && (() => {
+                  const sections = parseExplanation(result.explanation)
+                  const isPaid = subscription?.is_paid || false
+
+                  return (
+                    <div className="space-y-4">
+                      {/* Correct Answer - Always Visible */}
+                      {sections.correctAnswer && (
+                        <div className="p-4 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-900 rounded-lg">
+                          <div className="flex items-start gap-2 mb-2">
+                            <span className="text-green-600 text-xl">✅</span>
+                            <h4 className="font-bold text-green-900 dark:text-green-100">CORRECT ANSWER</h4>
+                          </div>
+                          <p className="text-sm text-green-900 dark:text-green-100 leading-relaxed whitespace-pre-wrap">
+                            {sections.correctAnswer}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Comprehensive Explanation - Always Visible */}
+                      {sections.comprehensiveExplanation && (
+                        <div className="p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900 rounded-lg">
+                          <h4 className="font-bold text-blue-900 dark:text-blue-100 mb-2">
+                            COMPREHENSIVE EXPLANATION
+                          </h4>
+                          <p className="text-sm text-blue-900 dark:text-blue-100 leading-relaxed whitespace-pre-wrap">
+                            {sections.comprehensiveExplanation}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Premium Content - Paywalled for Free Users */}
+                      {!isPaid && (sections.realWorldExample || sections.whyThisMatters || sections.incorrectOptions) && (
+                        <div className="relative p-6 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950/20 dark:to-pink-950/20 border-2 border-purple-200 dark:border-purple-900 rounded-lg">
+                          <div className="absolute inset-0 bg-white/60 dark:bg-black/60 backdrop-blur-sm rounded-lg flex items-center justify-center">
+                            <div className="text-center space-y-4 p-6">
+                              <div className="flex justify-center">
+                                <Crown className="h-12 w-12 text-purple-600" />
+                              </div>
+                              <div>
+                                <h4 className="font-bold text-lg mb-2">Upgrade to Premium</h4>
+                                <p className="text-sm text-muted-foreground mb-4">
+                                  Unlock detailed explanations including:
+                                </p>
+                                <ul className="text-sm text-left space-y-1 mb-4">
+                                  <li className="flex items-center gap-2">
+                                    <Sparkles className="h-4 w-4 text-purple-600" />
+                                    Real-world examples
+                                  </li>
+                                  <li className="flex items-center gap-2">
+                                    <Sparkles className="h-4 w-4 text-purple-600" />
+                                    Why this matters for your exam
+                                  </li>
+                                  <li className="flex items-center gap-2">
+                                    <Sparkles className="h-4 w-4 text-purple-600" />
+                                    Detailed breakdown of incorrect options
+                                  </li>
+                                </ul>
+                                <Link href="/pricing">
+                                  <Button className="w-full">
+                                    <Crown className="h-4 w-4 mr-2" />
+                                    Upgrade Now
+                                  </Button>
+                                </Link>
+                              </div>
+                            </div>
+                          </div>
+                          {/* Blurred preview */}
+                          <div className="blur-sm">
+                            <h4 className="font-bold mb-2">REAL-WORLD EXAMPLE</h4>
+                            <p className="text-sm mb-4">Lorem ipsum dolor sit amet...</p>
+                            <h4 className="font-bold mb-2">WHY THIS MATTERS</h4>
+                            <p className="text-sm">Lorem ipsum dolor sit amet...</p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Premium Content - Visible for Paid Users */}
+                      {isPaid && (
+                        <>
+                          {sections.realWorldExample && (
+                            <div className="p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900 rounded-lg">
+                              <h4 className="font-bold text-amber-900 dark:text-amber-100 mb-2">
+                                📚 REAL-WORLD EXAMPLE
+                              </h4>
+                              <p className="text-sm text-amber-900 dark:text-amber-100 leading-relaxed whitespace-pre-wrap">
+                                {sections.realWorldExample}
+                              </p>
+                            </div>
+                          )}
+
+                          {sections.whyThisMatters && (
+                            <div className="p-4 bg-purple-50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-900 rounded-lg">
+                              <h4 className="font-bold text-purple-900 dark:text-purple-100 mb-2">
+                                💡 WHY THIS MATTERS
+                              </h4>
+                              <p className="text-sm text-purple-900 dark:text-purple-100 leading-relaxed whitespace-pre-wrap">
+                                {sections.whyThisMatters}
+                              </p>
+                            </div>
+                          )}
+
+                          {sections.incorrectOptions && sections.incorrectOptions.length > 0 && (
+                            <div className="p-4 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900 rounded-lg">
+                              <div className="flex items-start gap-2 mb-3">
+                                <span className="text-red-600 text-xl">❌</span>
+                                <h4 className="font-bold text-red-900 dark:text-red-100">
+                                  INCORRECT OPTIONS - Why They're Wrong
+                                </h4>
+                              </div>
+                              <div className="space-y-3">
+                                {sections.incorrectOptions.map((item, idx) => (
+                                  <div key={idx} className="pl-4 border-l-2 border-red-300 dark:border-red-800">
+                                    <p className="font-semibold text-red-900 dark:text-red-100 mb-1">
+                                      Option {item.option}:
+                                    </p>
+                                    <p className="text-sm text-red-900 dark:text-red-100 leading-relaxed">
+                                      {item.explanation}
+                                    </p>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      )}
+
+                      {/* Fallback for unparsed explanations */}
+                      {!sections.correctAnswer && !sections.comprehensiveExplanation && (
+                        <div className="p-4 bg-muted rounded-lg">
+                          <h4 className="font-semibold mb-2">Explanation:</h4>
+                          <p className="text-sm text-muted-foreground whitespace-pre-wrap">{result.explanation}</p>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()}
 
                 <Button onClick={handleNext} className="w-full" disabled={isLoading}>
                   {isLoading ? (
