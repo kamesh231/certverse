@@ -114,28 +114,6 @@ export default function SettingsPage() {
     loadData()
   }, [user?.id])
 
-  // Handle redirect after successful upgrade
-  useEffect(() => {
-    const searchParams = new URLSearchParams(window.location.search)
-    if (searchParams.get('upgraded') === 'true' && user?.id) {
-      const userId = user.id // Capture user.id for use in async function
-      alert('🎉 Welcome to Premium! Your subscription is now active.')
-      // Clean up URL
-      window.history.replaceState({}, '', '/settings')
-      // Reload subscription data
-      async function reloadSubscription() {
-        try {
-          const token = await getToken()
-          const subscriptionData = await getUserSubscription(userId, token)
-          setSubscription(subscriptionData)
-        } catch (error) {
-          console.error('Failed to reload subscription:', error)
-        }
-      }
-      reloadSubscription()
-    }
-  }, [user?.id, getToken])
-
   // Initialize profile data
   useEffect(() => {
     if (user) {
