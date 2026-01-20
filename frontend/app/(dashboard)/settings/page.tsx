@@ -12,6 +12,7 @@ import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { getUserStats, getUserSubscription, createCheckoutUrl, getCustomerPortalUrl, type Subscription } from "@/lib/api"
 import {
   User,
@@ -30,6 +31,7 @@ import {
   CheckCircle2,
   Crown,
   Loader2,
+  AlertCircle,
 } from "lucide-react"
 
 // Comprehensive timezone list
@@ -571,9 +573,16 @@ export default function SettingsPage() {
                           <h3 className="text-2xl font-bold">
                             {subscription?.plan_type === 'paid' ? 'Premium Plan' : 'Free Plan'}
                           </h3>
-                          <Badge className={subscription?.is_paid ? "bg-gradient-to-r from-blue-600 to-indigo-600" : ""}>
+                          <Badge className={
+                            subscription?.status === 'past_due' 
+                              ? "bg-red-600" 
+                              : subscription?.is_paid 
+                                ? "bg-gradient-to-r from-blue-600 to-indigo-600" 
+                                : ""
+                          }>
                             {subscription?.status === 'trialing' ? 'Trial' :
                              subscription?.status === 'canceled' ? 'Canceling' :
+                             subscription?.status === 'past_due' ? 'Payment Failed' :
                              subscription?.status === 'active' ? 'Active' :
                              subscription?.status}
                           </Badge>
@@ -605,6 +614,41 @@ export default function SettingsPage() {
                           <p className="text-sm text-orange-600 dark:text-orange-400 font-medium">
                             Access until {new Date(subscription.cancel_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
                           </p>
+                        )}
+
+                        {/* Show payment failure warning */}
+                        {subscription?.status === 'past_due' && (
+                          <Alert variant="destructive" className="mt-4">
+                            <AlertCircle className="h-4 w-4" />
+                            <AlertTitle>Payment Failed</AlertTitle>
+                            <AlertDescription>
+                              Your payment method could not be charged. Please update your payment method to continue your subscription.
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="mt-2 w-full"
+                                onClick={async () => {
+                                  try {
+                                    const token = await getToken();
+                                    if (subscription?.polar_customer_id) {
+                                      const portalUrl = await getCustomerPortalUrl(user.id, token);
+                                      window.open(portalUrl, '_blank');
+                                    } else {
+                                      const isSandbox = process.env.NEXT_PUBLIC_POLAR_SANDBOX === 'true';
+                                      const portalDomain = isSandbox ? 'sandbox.polar.sh' : 'polar.sh';
+                                      const orgSlug = process.env.NEXT_PUBLIC_POLAR_ORG_SLUG || 'schedlynksandbox';
+                                      window.open(`https://${portalDomain}/${orgSlug}/portal`, '_blank');
+                                    }
+                                  } catch (error) {
+                                    console.error('Failed to open customer portal:', error);
+                                  }
+                                }}
+                              >
+                                <CreditCard className="h-4 w-4 mr-2" />
+                                Update Payment Method
+                              </Button>
+                            </AlertDescription>
+                          </Alert>
                         )}
                       </div>
                       {!subscription?.is_paid && (

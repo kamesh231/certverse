@@ -171,6 +171,11 @@ export async function handlePolarWebhook(req: Request, res: Response): Promise<v
         await handleCustomerStateChanged(webhookData);
         break;
 
+      // Payment Events
+      case 'payment.failed':
+        await handlePaymentFailed(webhookData);
+        break;
+
       default:
         logger.warn(`Unhandled webhook type: ${type}`);
     }
