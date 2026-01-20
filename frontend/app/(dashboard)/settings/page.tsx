@@ -13,7 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { getUserStats, getUserSubscription, createCheckoutUrl, getCustomerPortalUrl, type Subscription } from "@/lib/api"
+import { getUserStats } from "@/lib/api"
+import Link from "next/link"
 import {
   User,
   Settings,
@@ -84,8 +85,6 @@ export default function SettingsPage() {
   const [studyReminders, setStudyReminders] = useState(false)
   const [stats, setStats] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [subscription, setSubscription] = useState<Subscription | null>(null)
-  const [isUpgrading, setIsUpgrading] = useState(false)
   
   // Profile state
   const [fullName, setFullName] = useState("")
@@ -96,7 +95,6 @@ export default function SettingsPage() {
   const [hasChanges, setHasChanges] = useState(false)
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
-  const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'quarterly'>('monthly')
 
   useEffect(() => {
     async function loadData() {
@@ -104,12 +102,8 @@ export default function SettingsPage() {
 
       try {
         const token = await getToken()
-        const [statsData, subscriptionData] = await Promise.all([
-          getUserStats(user.id, token),
-          getUserSubscription(user.id, token)
-        ])
+        const statsData = await getUserStats(user.id, token)
         setStats(statsData)
-        setSubscription(subscriptionData)
       } catch (error) {
         console.error("Failed to load data:", error)
       } finally {
@@ -264,28 +258,6 @@ export default function SettingsPage() {
     setHasChanges(false)
   }
 
-  const handleUpgrade = async () => {
-    if (!user?.id || !user?.primaryEmailAddress?.emailAddress) {
-      alert('Please sign in first')
-      return
-    }
-
-    setIsUpgrading(true)
-    try {
-      const token = await getToken()
-      const checkoutUrl = await createCheckoutUrl(
-        user.id,
-        user.primaryEmailAddress.emailAddress,
-        billingPeriod,
-        token
-      )
-      window.location.href = checkoutUrl
-    } catch (error) {
-      console.error('Checkout error:', error)
-      alert('Failed to start checkout. Please try again.')
-      setIsUpgrading(false)
-    }
-  }
 
   const achievements = [
     {
@@ -555,320 +527,25 @@ export default function SettingsPage() {
 
           {/* Subscription Tab */}
           <TabsContent value="subscription" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Current Plan</CardTitle>
-                <CardDescription>Manage your subscription and billing</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {isLoading ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                  </div>
-                ) : (
-                  <>
-                    <div className="flex items-start justify-between">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <h3 className="text-2xl font-bold">
-                            {subscription?.plan_type === 'paid' ? 'Premium Plan' : 'Free Plan'}
-                          </h3>
-                          <Badge className={
-                            subscription?.status === 'past_due' 
-                              ? "bg-red-600" 
-                              : subscription?.is_paid 
-                                ? "bg-gradient-to-r from-blue-600 to-indigo-600" 
-                                : ""
-                          }>
-                            {subscription?.status === 'trialing' ? 'Trial' :
-                             subscription?.status === 'canceled' ? 'Canceling' :
-                             subscription?.status === 'past_due' ? 'Payment Failed' :
-                             subscription?.status === 'active' ? 'Active' :
-                             subscription?.status}
-                          </Badge>
-                        </div>
-                        <p className="text-muted-foreground">
-                          {subscription?.plan_type === 'paid' 
-                            ? (subscription?.billing_interval === 'quarterly' 
-                                ? '$59.00 / 3 months' 
-                                : '$29.00 / month')
-                            : '$0.00 / month'}
-                        </p>
-
-                        {/* Show trial end date */}
-                        {subscription?.status === 'trialing' && subscription?.current_period_end && (
-                          <p className="text-sm text-amber-600 dark:text-amber-400 font-medium">
-                            Trial ends on {new Date(subscription.current_period_end).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-                          </p>
-                        )}
-
-                        {/* Show renewal date for active paid */}
-                        {subscription?.is_paid && subscription?.status === 'active' && subscription?.current_period_end && (
-                          <p className="text-sm text-muted-foreground">
-                            Renews on {new Date(subscription.current_period_end).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-                          </p>
-                        )}
-
-                        {/* Show cancellation info */}
-                        {subscription?.status === 'canceled' && subscription?.cancel_at && (
-                          <p className="text-sm text-orange-600 dark:text-orange-400 font-medium">
-                            Access until {new Date(subscription.cancel_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-                          </p>
-                        )}
-
-                        {/* Show payment failure warning */}
-                        {subscription?.status === 'past_due' && (
-                          <Alert variant="destructive" className="mt-4">
-                            <AlertCircle className="h-4 w-4" />
-                            <AlertTitle>Payment Failed</AlertTitle>
-                            <AlertDescription>
-                              Your payment method could not be charged. Please update your payment method to continue your subscription.
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="mt-2 w-full"
-                                onClick={async () => {
-                                  try {
-                                    const token = await getToken();
-                                    if (subscription?.polar_customer_id) {
-                                      const portalUrl = await getCustomerPortalUrl(user.id, token);
-                                      window.open(portalUrl, '_blank');
-                                    } else {
-                                      const isSandbox = process.env.NEXT_PUBLIC_POLAR_SANDBOX === 'true';
-                                      const portalDomain = isSandbox ? 'sandbox.polar.sh' : 'polar.sh';
-                                      const orgSlug = process.env.NEXT_PUBLIC_POLAR_ORG_SLUG || 'schedlynksandbox';
-                                      window.open(`https://${portalDomain}/${orgSlug}/portal`, '_blank');
-                                    }
-                                  } catch (error) {
-                                    console.error('Failed to open customer portal:', error);
-                                  }
-                                }}
-                              >
-                                <CreditCard className="h-4 w-4 mr-2" />
-                                Update Payment Method
-                              </Button>
-                            </AlertDescription>
-                          </Alert>
-                        )}
-                      </div>
-                      {!subscription?.is_paid && (
-                        <Button onClick={handleUpgrade} disabled={isUpgrading}>
-                          {isUpgrading ? (
-                            <>
-                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                              Loading...
-                            </>
-                          ) : (
-                            'Upgrade to Premium'
-                          )}
-                        </Button>
-                      )}
-                    </div>
-
-                    <div className="mt-6 space-y-3 rounded-lg border bg-muted/50 p-4">
-                      <h4 className="font-semibold">
-                        {subscription?.plan_type === 'paid' ? 'Premium Features:' : 'Free Plan Features:'}
-                      </h4>
-                      <ul className="space-y-2 text-sm">
-                        {subscription?.status === 'trialing' && subscription?.plan_type === 'paid' ? (
-                          <>
-                            <li className="flex items-center gap-2">
-                              <CheckCircle2 className="h-4 w-4 text-amber-600" />
-                              Trial: 15 questions per day
-                            </li>
-                            <li className="flex items-center gap-2">
-                              <CheckCircle2 className="h-4 w-4 text-green-600" />
-                              Full 3000+-question access
-                            </li>
-                            <li className="flex items-center gap-2">
-                              <CheckCircle2 className="h-4 w-4 text-green-600" />
-                              Detailed explanations
-                            </li>
-                            <li className="flex items-center gap-2">
-                              <CheckCircle2 className="h-4 w-4 text-green-600" />
-                              All domains unlocked
-                            </li>
-                          </>
-                        ) : subscription?.plan_type === 'paid' ? (
-                          <>
-                            <li className="flex items-center gap-2">
-                              <CheckCircle2 className="h-4 w-4 text-green-600" />
-                              Unlimited questions per day
-                            </li>
-                            <li className="flex items-center gap-2">
-                              <CheckCircle2 className="h-4 w-4 text-green-600" />
-                              Full 3000+-question access
-                            </li>
-                            <li className="flex items-center gap-2">
-                              <CheckCircle2 className="h-4 w-4 text-green-600" />
-                              Detailed explanations
-                            </li>
-                            <li className="flex items-center gap-2">
-                              <CheckCircle2 className="h-4 w-4 text-green-600" />
-                              Progress tracking
-                            </li>
-                            <li className="flex items-center gap-2">
-                              <CheckCircle2 className="h-4 w-4 text-green-600" />
-                              Exam readiness score
-                            </li>
-                            <li className="flex items-center gap-2">
-                              <CheckCircle2 className="h-4 w-4 text-green-600" />
-                              Priority support
-                            </li>
-                          </>
-                        ) : (
-                          <>
-                            <li className="flex items-center gap-2">
-                              <CheckCircle2 className="h-4 w-4 text-green-600" />
-                              2 questions per day
-                            </li>
-                            <li className="flex items-center gap-2">
-                              <CheckCircle2 className="h-4 w-4 text-green-600" />
-                              Basic stats tracking
-                            </li>
-                            <li className="flex items-center gap-2">
-                              <CheckCircle2 className="h-4 w-4 text-green-600" />
-                              Streak tracking
-                            </li>
-                          </>
-                        )}
-                      </ul>
-                    </div>
-
-                    {subscription?.plan_type === 'paid' && subscription?.is_paid && (
-                      <div className="mt-6">
-                        <Button
-                          className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
-                          onClick={async () => {
-                            try {
-                              if (!user?.id) return;
-                              
-                              // If has Polar customer ID, use pre-authenticated portal (best UX)
-                              if (subscription?.polar_customer_id) {
-                                const token = await getToken()
-                                const portalUrl = await getCustomerPortalUrl(user.id, token);
-                                window.open(portalUrl, '_blank');
-                              } else {
-                                // Fallback: Direct link to portal (user enters email)
-                                const isSandbox = process.env.NEXT_PUBLIC_POLAR_SANDBOX === 'true';
-                                const portalDomain = isSandbox ? 'sandbox.polar.sh' : 'polar.sh';
-                                const orgSlug = process.env.NEXT_PUBLIC_POLAR_ORG_SLUG || 'schedlynksandbox';
-                                window.open(`https://${portalDomain}/${orgSlug}/portal`, '_blank');
-                              }
-                            } catch (error) {
-                              console.error('Failed to open customer portal:', error);
-                              // On error, fallback to direct link
-                              const isSandbox = process.env.NEXT_PUBLIC_POLAR_SANDBOX === 'true';
-                              const portalDomain = isSandbox ? 'sandbox.polar.sh' : 'polar.sh';
-                              const orgSlug = process.env.NEXT_PUBLIC_POLAR_ORG_SLUG || 'schedlynksandbox';
-                              window.open(`https://${portalDomain}/${orgSlug}/portal`, '_blank');
-                            }
-                          }}
-                        >
-                          <CreditCard className="h-4 w-4 mr-2" />
-                          Manage Subscription
-                        </Button>
-                        <p className="text-xs text-muted-foreground text-center mt-2">
-                          Update payment method, view invoices, or cancel subscription
-                        </p>
-                      </div>
-                    )}
-                  </>
-                )}
-              </CardContent>
-            </Card>
-
-            {!subscription?.is_paid && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Upgrade to Premium</CardTitle>
-                  <CardDescription>Unlock unlimited access and detailed explanations</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="rounded-lg border-2 border-primary p-6 space-y-4">
-                    <div className="flex items-center gap-2">
-                      <Crown className="h-6 w-6 text-primary" />
-                      <h3 className="text-xl font-bold">Choose Your Plan</h3>
-                    </div>
-                    
-                    {/* Two billing options side by side */}
-                    <div className="grid grid-cols-2 gap-4">
-                      {/* Monthly Option */}
-                      <button
-                        onClick={() => setBillingPeriod('monthly')}
-                        className={`p-4 rounded-lg border-2 transition-all ${
-                          billingPeriod === 'monthly' 
-                            ? 'border-primary bg-primary/5' 
-                            : 'border-muted hover:border-primary/50'
-                        }`}
-                      >
-                        <div className="text-center">
-                          <p className="text-2xl font-bold">$29</p>
-                          <p className="text-sm text-muted-foreground">per month</p>
-                        </div>
-                      </button>
-                      
-                      {/* Quarterly Option */}
-                      <button
-                        onClick={() => setBillingPeriod('quarterly')}
-                        className={`p-4 rounded-lg border-2 transition-all relative ${
-                          billingPeriod === 'quarterly' 
-                            ? 'border-primary bg-primary/5' 
-                            : 'border-muted hover:border-primary/50'
-                        }`}
-                      >
-                        <Badge className="absolute -top-2 -right-2 bg-green-500 text-white">Save 32%</Badge>
-                        <div className="text-center">
-                          <p className="text-2xl font-bold">$59</p>
-                          <p className="text-sm text-muted-foreground">per 3 months</p>
-                        </div>
-                      </button>
-                    </div>
-                    
-                    <ul className="space-y-2 text-sm">
-                      <li className="flex items-center gap-2">
-                        <CheckCircle2 className="h-4 w-4 text-green-600" />
-                        Full 3000+-question access
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <CheckCircle2 className="h-4 w-4 text-green-600" />
-                        Domain-wise practice
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <CheckCircle2 className="h-4 w-4 text-green-600" />
-                        Detailed explanations
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <CheckCircle2 className="h-4 w-4 text-green-600" />
-                        Progress tracking
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <CheckCircle2 className="h-4 w-4 text-green-600" />
-                        Exam readiness score
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <CheckCircle2 className="h-4 w-4 text-amber-600" />
-                        7-day trial (15 questions/day)
-                      </li>
-                    </ul>
-                    <Button
-                      className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
-                      onClick={handleUpgrade}
-                      disabled={isUpgrading}
-                    >
-                      {isUpgrading ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Loading...
-                        </>
-                      ) : (
-                        'Upgrade Now'
-                      )}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+            <Alert>
+              <Crown className="h-4 w-4" />
+              <AlertTitle>Subscription Management Moved</AlertTitle>
+              <AlertDescription className="space-y-3">
+                <p>
+                  We've moved subscription management to make it easier to find. Visit the{' '}
+                  <Link href="/subscription" className="font-semibold underline underline-offset-4 hover:text-primary">
+                    Subscription page
+                  </Link>{' '}
+                  to view your current plan, upgrade, or manage your billing.
+                </p>
+                <Button asChild className="w-full sm:w-auto">
+                  <Link href="/subscription">
+                    <Crown className="h-4 w-4 mr-2" />
+                    Go to Subscription
+                  </Link>
+                </Button>
+              </AlertDescription>
+            </Alert>
           </TabsContent>
         </Tabs>
       </main>

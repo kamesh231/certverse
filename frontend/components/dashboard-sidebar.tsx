@@ -13,6 +13,7 @@ import {
   Award,
   Menu,
   X,
+  Crown,
 } from "lucide-react"
 import { Button } from "./ui/button"
 import { useState } from "react"
@@ -21,6 +22,7 @@ const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "Study", href: "/study", icon: Target },
   { name: "Practice", href: "/question", icon: BookOpen },
+  { name: "Subscription", href: "/subscription", icon: Crown },
   { name: "Settings", href: "/settings", icon: Settings },
 ]
 

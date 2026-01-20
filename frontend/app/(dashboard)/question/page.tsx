@@ -324,7 +324,7 @@ export default function QuestionPage() {
               </div>
             )}
             <Button asChild className="w-full">
-              <Link href="/pricing">Upgrade to Premium</Link>
+              <Link href="/subscription">Upgrade to Premium</Link>
             </Button>
           </CardContent>
         </Card>

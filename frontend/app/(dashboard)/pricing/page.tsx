@@ -1,46 +1,24 @@
 "use client"
 
 import { useState } from "react"
-import { useUser, useAuth } from "@clerk/nextjs"
+import { useUser } from "@clerk/nextjs"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Check, X, Loader2, Sparkles } from "lucide-react"
-import { createCheckoutUrl } from "@/lib/api"
+import { Check, X, Sparkles } from "lucide-react"
 
 export default function PricingPage() {
   const { user } = useUser()
-  const { getToken } = useAuth()
-  const [isLoading, setIsLoading] = useState(false)
+  const router = useRouter()
   const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'quarterly'>('monthly')
   const [showWaitlistForm, setShowWaitlistForm] = useState(false)
   const [waitlistEmail, setWaitlistEmail] = useState('')
   const [waitlistSubmitted, setWaitlistSubmitted] = useState(false)
 
-  const handleUpgrade = async () => {
-    if (!user?.id || !user?.primaryEmailAddress?.emailAddress) {
-      alert('Please sign in first')
-      return
-    }
-
-    setIsLoading(true)
-    try {
-      const token = await getToken()
-      const checkoutUrl = await createCheckoutUrl(
-        user.id,
-        user.primaryEmailAddress.emailAddress,
-        billingPeriod,
-        token
-      )
-
-      // Redirect to Polar checkout
-      window.location.href = checkoutUrl
-    } catch (error) {
-      console.error('Checkout error:', error)
-      alert('Failed to start checkout. Please try again.')
-      setIsLoading(false)
-    }
+  const handleUpgrade = () => {
+    router.push(`/subscription?plan=${billingPeriod}`)
   }
 
   const handleWaitlistSubmit = (e: React.FormEvent) => {
@@ -223,16 +201,9 @@ export default function PricingPage() {
                     className="w-full"
                     variant={plan.ctaVariant}
                     onClick={handleUpgrade}
-                    disabled={isLoading || plan.comingSoon}
+                    disabled={plan.comingSoon}
                   >
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Loading...
-                      </>
-                    ) : (
-                      plan.cta
-                    )}
+                    {plan.cta}
                   </Button>
                 ) : plan.comingSoon ? (
                   <Button

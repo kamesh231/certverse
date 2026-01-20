@@ -122,7 +122,7 @@ export default function Home() {
             </h2>
             <p className="mx-auto max-w-2xl text-balance text-lg text-muted-foreground">
               Our platform combines cutting-edge technology with expert content to give you the best preparation
-              experience.
+              experience. Questions are framed by CISA-certified tutors to simulate real exam scenarios.
             </p>
           </div>
 
@@ -282,7 +282,7 @@ export default function Home() {
               </CardContent>
               <CardFooter>
                 <Button className="w-full" asChild>
-                  <Link href="/pricing">Upgrade to Premium</Link>
+                  <Link href="/sign-in?redirect_url=/subscription">Upgrade to Premium</Link>
                 </Button>
               </CardFooter>
             </Card>
