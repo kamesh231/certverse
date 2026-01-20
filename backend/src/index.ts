@@ -194,7 +194,19 @@ app.get('/api/unlock/remaining', verifyAuth, asyncHandler(async (req: Request, r
 
   const remaining = await getRemainingQuestions(userId);
   const subscription = await getUserSubscription(userId);
-  const total = subscription.is_paid ? 999 : 2;
+  
+  // Calculate total based on subscription status
+  let total = 2; // Default for free users
+  const now = new Date();
+  
+  if (subscription.status === 'trialing' && subscription.plan_type === 'paid') {
+    total = 15; // Trial users get 15 questions per day
+  } else if (subscription.status === 'canceled' && subscription.trial_end && subscription.plan_type === 'paid') {
+    const trialEnd = new Date(subscription.trial_end);
+    total = now < trialEnd ? 15 : 2; // If still in trial after cancel, 15/day; otherwise 2/day
+  } else if (subscription.is_paid) {
+    total = 999; // Unlimited for paid users
+  }
 
   // Get streak from user_stats
   const { supabase } = await import('./lib/supabase');

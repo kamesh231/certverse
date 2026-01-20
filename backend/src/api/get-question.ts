@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import logger from '../lib/logger';
 import { applyWatermark, logQuestionAccess, getClientIp } from '../services/watermarkService';
 import { getRemainingQuestions } from '../services/unlockService';
+import { getUserSubscription } from '../services/subscriptionService';
 
 export async function getQuestion(req: Request, res: Response): Promise<void> {
   try {
@@ -31,9 +32,21 @@ export async function getQuestion(req: Request, res: Response): Promise<void> {
         tomorrow.setDate(tomorrow.getDate() + 1);
         tomorrow.setHours(0, 0, 0, 0);
         
+        // Get subscription to determine appropriate message
+        const subscription = await getUserSubscription(userId);
+        const now = new Date();
+        
+        // Check if user is in trial (active or canceled but still within trial period)
+        const isInTrial = subscription.plan_type === 'paid' && (
+          subscription.status === 'trialing' ||
+          (subscription.status === 'canceled' && subscription.trial_end && now < new Date(subscription.trial_end))
+        );
+        
         res.status(403).json({ 
           error: 'Daily question limit reached',
-          message: 'You have reached your daily limit of 2 questions. Upgrade to Premium for unlimited access.',
+          message: isInTrial
+            ? 'You have reached your trial limit of 15 questions. Your limit resets at midnight.'
+            : 'You have reached your daily limit of 2 questions. Upgrade to Premium for unlimited access.',
           remaining: 0,
           resetsAt: tomorrow.toISOString()
         });

@@ -626,7 +626,26 @@ export default function SettingsPage() {
                         {subscription?.plan_type === 'paid' ? 'Premium Features:' : 'Free Plan Features:'}
                       </h4>
                       <ul className="space-y-2 text-sm">
-                        {subscription?.plan_type === 'paid' ? (
+                        {subscription?.status === 'trialing' && subscription?.plan_type === 'paid' ? (
+                          <>
+                            <li className="flex items-center gap-2">
+                              <CheckCircle2 className="h-4 w-4 text-amber-600" />
+                              Trial: 15 questions per day
+                            </li>
+                            <li className="flex items-center gap-2">
+                              <CheckCircle2 className="h-4 w-4 text-green-600" />
+                              Full 3000+-question access
+                            </li>
+                            <li className="flex items-center gap-2">
+                              <CheckCircle2 className="h-4 w-4 text-green-600" />
+                              Detailed explanations
+                            </li>
+                            <li className="flex items-center gap-2">
+                              <CheckCircle2 className="h-4 w-4 text-green-600" />
+                              All domains unlocked
+                            </li>
+                          </>
+                        ) : subscription?.plan_type === 'paid' ? (
                           <>
                             <li className="flex items-center gap-2">
                               <CheckCircle2 className="h-4 w-4 text-green-600" />
@@ -634,11 +653,19 @@ export default function SettingsPage() {
                             </li>
                             <li className="flex items-center gap-2">
                               <CheckCircle2 className="h-4 w-4 text-green-600" />
-                              Detailed explanations for every answer
+                              Full 3000+-question access
                             </li>
                             <li className="flex items-center gap-2">
                               <CheckCircle2 className="h-4 w-4 text-green-600" />
-                              Advanced dashboard & analytics
+                              Detailed explanations
+                            </li>
+                            <li className="flex items-center gap-2">
+                              <CheckCircle2 className="h-4 w-4 text-green-600" />
+                              Progress tracking
+                            </li>
+                            <li className="flex items-center gap-2">
+                              <CheckCircle2 className="h-4 w-4 text-green-600" />
+                              Exam readiness score
                             </li>
                             <li className="flex items-center gap-2">
                               <CheckCircle2 className="h-4 w-4 text-green-600" />
@@ -757,7 +784,11 @@ export default function SettingsPage() {
                     <ul className="space-y-2 text-sm">
                       <li className="flex items-center gap-2">
                         <CheckCircle2 className="h-4 w-4 text-green-600" />
-                        Unlimited questions
+                        Full 3000+-question access
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <CheckCircle2 className="h-4 w-4 text-green-600" />
+                        Domain-wise practice
                       </li>
                       <li className="flex items-center gap-2">
                         <CheckCircle2 className="h-4 w-4 text-green-600" />
@@ -765,11 +796,15 @@ export default function SettingsPage() {
                       </li>
                       <li className="flex items-center gap-2">
                         <CheckCircle2 className="h-4 w-4 text-green-600" />
-                        Advanced analytics
+                        Progress tracking
                       </li>
                       <li className="flex items-center gap-2">
                         <CheckCircle2 className="h-4 w-4 text-green-600" />
-                        Priority support
+                        Exam readiness score
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <CheckCircle2 className="h-4 w-4 text-amber-600" />
+                        7-day trial (15 questions/day)
                       </li>
                     </ul>
                     <Button

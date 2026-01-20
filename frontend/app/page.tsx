@@ -256,7 +256,11 @@ export default function Home() {
                 <ul className="space-y-3">
                   <li className="flex items-start gap-2">
                     <Check className="h-5 w-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
-                    <span className="text-sm">Unlimited questions</span>
+                    <span className="text-sm">Full 3000+-question access</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="h-5 w-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
+                    <span className="text-sm">Domain-wise practice</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <Check className="h-5 w-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
@@ -264,11 +268,15 @@ export default function Home() {
                   </li>
                   <li className="flex items-start gap-2">
                     <Check className="h-5 w-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
-                    <span className="text-sm">Advanced analytics</span>
+                    <span className="text-sm">Progress tracking</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <Check className="h-5 w-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
-                    <span className="text-sm">Priority support</span>
+                    <span className="text-sm">Exam readiness score</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="h-5 w-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
+                    <span className="text-sm">7-day trial (15 questions/day)</span>
                   </li>
                 </ul>
               </CardContent>

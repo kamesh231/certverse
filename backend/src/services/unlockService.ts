@@ -101,10 +101,40 @@ export async function getRemainingQuestions(userId: string): Promise<number> {
  */
 async function calculateDailyUnlock(userId: string): Promise<number> {
   const subscription = await getUserSubscription(userId);
+  const now = new Date();
 
-  // Use is_paid which already checks for active, trialing, canceled (before period end), and past_due
-  if (subscription.is_paid) {
-    return 999; // Unlimited for paid users (including trial, canceled-but-active, dunning)
+  // Check if user is on trial (7-day trial period)
+  if (subscription.status === 'trialing' && subscription.plan_type === 'paid') {
+    return 15; // Trial users get 15 questions per day
+  }
+
+  // Check if user canceled during trial - let them finish trial with 15 questions/day
+  if (subscription.status === 'canceled' && subscription.trial_end && subscription.plan_type === 'paid') {
+    const trialEnd = new Date(subscription.trial_end);
+    if (now < trialEnd) {
+      return 15; // Canceled during trial, keep 15 questions/day until trial ends
+    }
+    // Trial ended after cancellation, downgrade to free
+    return 2;
+  }
+
+  // Check if user is fully paid (after trial)
+  if (subscription.is_paid && subscription.status === 'active') {
+    return 999; // Unlimited for paid users after trial
+  }
+
+  // Canceled after trial (user was charged and then canceled mid-billing period)
+  // Give them unlimited until their paid period ends
+  if (subscription.is_paid && subscription.status === 'canceled' && subscription.current_period_end) {
+    const periodEnd = new Date(subscription.current_period_end);
+    if (now < periodEnd) {
+      return 999; // Keep unlimited until period ends (they paid for this)
+    }
+  }
+
+  // Past due but still has access during grace period
+  if (subscription.status === 'past_due' && subscription.plan_type === 'paid') {
+    return 999; // Keep unlimited during payment retry period
   }
 
   return 2; // Free users get 2 questions per day
