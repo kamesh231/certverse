@@ -690,7 +690,6 @@ export default function QuestionPage() {
 
                 {result.explanation && (() => {
                   const sections = parseExplanation(result.explanation)
-                  const isPaid = subscription?.is_paid || false
 
                   return (
                     <div className="space-y-4">
@@ -719,100 +718,52 @@ export default function QuestionPage() {
                         </div>
                       )}
 
-                      {/* Premium Content - Paywalled for Free Users */}
-                      {!isPaid && (sections.realWorldExample || sections.whyThisMatters || sections.incorrectOptions) && (
-                        <div className="relative p-6 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950/20 dark:to-pink-950/20 border-2 border-purple-200 dark:border-purple-900 rounded-lg">
-                          <div className="absolute inset-0 bg-white/60 dark:bg-black/60 backdrop-blur-sm rounded-lg flex items-center justify-center">
-                            <div className="text-center space-y-4 p-6">
-                              <div className="flex justify-center">
-                                <Crown className="h-12 w-12 text-purple-600" />
-                              </div>
-                              <div>
-                                <h4 className="font-bold text-lg mb-2">Upgrade to Premium</h4>
-                                <p className="text-sm text-muted-foreground mb-4">
-                                  Unlock detailed explanations including:
-                                </p>
-                                <ul className="text-sm text-left space-y-1 mb-4">
-                                  <li className="flex items-center gap-2">
-                                    <Sparkles className="h-4 w-4 text-purple-600" />
-                                    Real-world examples
-                                  </li>
-                                  <li className="flex items-center gap-2">
-                                    <Sparkles className="h-4 w-4 text-purple-600" />
-                                    Why this matters for your exam
-                                  </li>
-                                  <li className="flex items-center gap-2">
-                                    <Sparkles className="h-4 w-4 text-purple-600" />
-                                    Detailed breakdown of incorrect options
-                                  </li>
-                                </ul>
-                                <Link href="/pricing">
-                                  <Button className="w-full">
-                                    <Crown className="h-4 w-4 mr-2" />
-                                    Upgrade Now
-                                  </Button>
-                                </Link>
-                              </div>
-                            </div>
-                          </div>
-                          {/* Blurred preview */}
-                          <div className="blur-sm">
-                            <h4 className="font-bold mb-2">REAL-WORLD EXAMPLE</h4>
-                            <p className="text-sm mb-4">Lorem ipsum dolor sit amet...</p>
-                            <h4 className="font-bold mb-2">WHY THIS MATTERS</h4>
-                            <p className="text-sm">Lorem ipsum dolor sit amet...</p>
-                          </div>
+                      {/* Real-world Example - Always Visible */}
+                      {sections.realWorldExample && (
+                        <div className="p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900 rounded-lg">
+                          <h4 className="font-bold text-amber-900 dark:text-amber-100 mb-2">
+                            📚 REAL-WORLD EXAMPLE
+                          </h4>
+                          <p className="text-sm text-amber-900 dark:text-amber-100 leading-relaxed whitespace-pre-wrap">
+                            {sections.realWorldExample}
+                          </p>
                         </div>
                       )}
 
-                      {/* Premium Content - Visible for Paid Users */}
-                      {isPaid && (
-                        <>
-                          {sections.realWorldExample && (
-                            <div className="p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900 rounded-lg">
-                              <h4 className="font-bold text-amber-900 dark:text-amber-100 mb-2">
-                                📚 REAL-WORLD EXAMPLE
-                              </h4>
-                              <p className="text-sm text-amber-900 dark:text-amber-100 leading-relaxed whitespace-pre-wrap">
-                                {sections.realWorldExample}
-                              </p>
-                            </div>
-                          )}
+                      {/* Why This Matters - Always Visible */}
+                      {sections.whyThisMatters && (
+                        <div className="p-4 bg-purple-50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-900 rounded-lg">
+                          <h4 className="font-bold text-purple-900 dark:text-purple-100 mb-2">
+                            💡 WHY THIS MATTERS
+                          </h4>
+                          <p className="text-sm text-purple-900 dark:text-purple-100 leading-relaxed whitespace-pre-wrap">
+                            {sections.whyThisMatters}
+                          </p>
+                        </div>
+                      )}
 
-                          {sections.whyThisMatters && (
-                            <div className="p-4 bg-purple-50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-900 rounded-lg">
-                              <h4 className="font-bold text-purple-900 dark:text-purple-100 mb-2">
-                                💡 WHY THIS MATTERS
-                              </h4>
-                              <p className="text-sm text-purple-900 dark:text-purple-100 leading-relaxed whitespace-pre-wrap">
-                                {sections.whyThisMatters}
-                              </p>
-                            </div>
-                          )}
-
-                          {sections.incorrectOptions && sections.incorrectOptions.length > 0 && (
-                            <div className="p-4 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900 rounded-lg">
-                              <div className="flex items-start gap-2 mb-3">
-                                <span className="text-red-600 text-xl">❌</span>
-                                <h4 className="font-bold text-red-900 dark:text-red-100">
-                                  INCORRECT OPTIONS - Why They're Wrong
-                                </h4>
+                      {/* Incorrect Options - Always Visible */}
+                      {sections.incorrectOptions && sections.incorrectOptions.length > 0 && (
+                        <div className="p-4 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900 rounded-lg">
+                          <div className="flex items-start gap-2 mb-3">
+                            <span className="text-red-600 text-xl">❌</span>
+                            <h4 className="font-bold text-red-900 dark:text-red-100">
+                              INCORRECT OPTIONS - Why They're Wrong
+                            </h4>
+                          </div>
+                          <div className="space-y-3">
+                            {sections.incorrectOptions.map((item, idx) => (
+                              <div key={idx} className="pl-4 border-l-2 border-red-300 dark:border-red-800">
+                                <p className="font-semibold text-red-900 dark:text-red-100 mb-1">
+                                  Option {item.option}:
+                                </p>
+                                <p className="text-sm text-red-900 dark:text-red-100 leading-relaxed">
+                                  {item.explanation}
+                                </p>
                               </div>
-                              <div className="space-y-3">
-                                {sections.incorrectOptions.map((item, idx) => (
-                                  <div key={idx} className="pl-4 border-l-2 border-red-300 dark:border-red-800">
-                                    <p className="font-semibold text-red-900 dark:text-red-100 mb-1">
-                                      Option {item.option}:
-                                    </p>
-                                    <p className="text-sm text-red-900 dark:text-red-100 leading-relaxed">
-                                      {item.explanation}
-                                    </p>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </>
+                            ))}
+                          </div>
+                        </div>
                       )}
 
                       {/* Fallback for unparsed explanations */}
