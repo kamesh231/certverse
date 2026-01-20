@@ -55,8 +55,8 @@ export default function SubscriptionPage() {
       const checkoutUrl = await createCheckoutUrl(
         user.id,
         user.primaryEmailAddress?.emailAddress || '',
-        token,
-        billingInterval
+        billingInterval,
+        token
       )
       window.location.href = checkoutUrl
     } catch (error) {
