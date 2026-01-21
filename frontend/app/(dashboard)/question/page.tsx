@@ -304,7 +304,19 @@ export default function QuestionPage() {
               <CardTitle>Daily Limit Reached</CardTitle>
             </div>
             <CardDescription>
-              You've reached your daily question limit. Upgrade to Premium for unlimited questions!
+              {error || "You've reached your daily question limit. Upgrade to Premium for unlimited questions!"}
+              {error?.includes('trial') && (
+                <span className="block mt-2 text-xs">
+                  💡 Need unlimited access now? Contact{' '}
+                  <a 
+                    href="mailto:kamesh@figulus.io" 
+                    className="underline font-semibold hover:text-foreground"
+                  >
+                    kamesh@figulus.io
+                  </a>{' '}
+                  to skip trial and activate your plan immediately.
+                </span>
+              )}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">

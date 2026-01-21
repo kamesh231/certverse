@@ -145,6 +145,19 @@ export default function SubscriptionPage() {
                   <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
                     After your trial, you'll be charged the full amount and get unlimited access.
                   </p>
+                  <p className="text-xs text-amber-700 dark:text-amber-300 mt-2 flex items-start gap-1">
+                    <span>💡</span>
+                    <span>
+                      Need unlimited access now? Contact{' '}
+                      <a 
+                        href="mailto:kamesh@figulus.io" 
+                        className="underline font-semibold hover:text-amber-900 dark:hover:text-amber-100"
+                      >
+                        kamesh@figulus.io
+                      </a>{' '}
+                      to skip trial and activate your plan immediately.
+                    </span>
+                  </p>
                 </div>
               )}
 
