@@ -364,6 +364,10 @@ async function handleCustomerStateChanged(data: any): Promise<void> {
   // This event contains active_subscriptions array
   logger.info(`Customer state changed for customer ${data.id}`);
 
+  // #region agent log
+  fetch('http://127.0.0.1:7243/ingest/6179c10d-52cc-4a13-9d3e-47c4b4a8453a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'polar-webhook.ts:362',message:'handleCustomerStateChanged entry',data:{customerId:data.id,activeSubscriptionsCount:data.active_subscriptions?.length||0,subscriptions:data.active_subscriptions?.map((s:any)=>({id:s.id,status:s.status}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
+
   if (!data.active_subscriptions || data.active_subscriptions.length === 0) {
     logger.info('Customer has no active subscriptions');
     return;
@@ -372,8 +376,16 @@ async function handleCustomerStateChanged(data: any): Promise<void> {
   // Process each active subscription
   for (const subscription of data.active_subscriptions) {
     try {
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/6179c10d-52cc-4a13-9d3e-47c4b4a8453a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'polar-webhook.ts:375',message:'Processing subscription from webhook',data:{polarSubscriptionId:subscription.id,status:subscription.status,trialStart:subscription.trial_start,trialEnd:subscription.trial_end,currentPeriodEnd:subscription.current_period_end,billingInterval:subscription.recurring_interval},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
+
       // Try to find existing subscription in our database
       let existingSubscription = await getSubscriptionByPolarId(subscription.id);
+
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/6179c10d-52cc-4a13-9d3e-47c4b4a8453a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'polar-webhook.ts:377',message:'Found existing subscription in DB',data:{found:!!existingSubscription,userId:existingSubscription?.user_id,currentStatus:existingSubscription?.status,currentTrialEnd:existingSubscription?.trial_end},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
 
       if (!existingSubscription) {
         // No subscription found - cannot process without prior record
@@ -383,13 +395,66 @@ async function handleCustomerStateChanged(data: any): Promise<void> {
         continue;
       }
 
-      // Update existing subscription status
-      await updateSubscriptionStatus(existingSubscription.user_id, subscription.status, {
-        currentPeriodEnd: subscription.current_period_end,
-      });
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/6179c10d-52cc-4a13-9d3e-47c4b4a8453a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'polar-webhook.ts:386',message:'BEFORE comprehensive subscription update',data:{userId:existingSubscription.user_id,newStatus:subscription.status,statusType:typeof subscription.status,isTrialing:subscription.status==='trialing',trialStart:subscription.trial_start,trialEnd:subscription.trial_end},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
 
-      logger.info(`✅ Updated subscription status for user ${existingSubscription.user_id}`);
+      // Extract billing interval from subscription data
+      const billingInterval = extractBillingInterval(subscription);
+      
+      // Use comprehensive update similar to handleSubscriptionUpdated
+      // This updates ALL fields including status (even 'trialing'), trial dates, billing interval, etc.
+      const { supabase } = require('../lib/supabase');
+      const updateData: any = {
+        status: subscription.status, // Can be 'trialing', 'active', etc.
+        current_period_start: subscription.current_period_start,
+        current_period_end: subscription.current_period_end,
+        billing_interval: billingInterval,
+        polar_price_id: subscription.price_id,
+        updated_at: new Date().toISOString(),
+      };
+
+      // Update trial fields if present
+      if (subscription.trial_start) {
+        updateData.trial_start = subscription.trial_start;
+      }
+      if (subscription.trial_end) {
+        updateData.trial_end = subscription.trial_end;
+      }
+      // If status is 'active' and we have trial_end, clear trial dates (trial ended)
+      if (subscription.status === 'active' && subscription.trial_end) {
+        // Keep trial_end for historical record, but mark that trial is complete
+        updateData.has_used_trial = true;
+      }
+
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/6179c10d-52cc-4a13-9d3e-47c4b4a8453a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'polar-webhook.ts:410',message:'BEFORE DB update with comprehensive data',data:{userId:existingSubscription.user_id,updateData},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+
+      const { error } = await supabase
+        .from('subscriptions')
+        .update(updateData)
+        .eq('user_id', existingSubscription.user_id);
+
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/6179c10d-52cc-4a13-9d3e-47c4b4a8453a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'polar-webhook.ts:420',message:'AFTER DB update',data:{userId:existingSubscription.user_id,error:error?JSON.stringify(error):null,success:!error},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+
+      if (error) {
+        logger.error('Error updating subscription:', error);
+        throw error;
+      }
+
+      // #region agent log
+      const verifySub = await getSubscriptionByPolarId(subscription.id);
+      fetch('http://127.0.0.1:7243/ingest/6179c10d-52cc-4a13-9d3e-47c4b4a8453a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'polar-webhook.ts:430',message:'VERIFY final DB state after update',data:{userId:verifySub?.user_id,status:verifySub?.status,trialEnd:verifySub?.trial_end,currentPeriodEnd:verifySub?.current_period_end,isPaid:verifySub?.is_paid,billingInterval:verifySub?.billing_interval},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'D'})}).catch(()=>{});
+      // #endregion
+
+      logger.info(`✅ Updated subscription for user ${existingSubscription.user_id} - status: ${subscription.status}`);
     } catch (error) {
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/6179c10d-52cc-4a13-9d3e-47c4b4a8453a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'polar-webhook.ts:393',message:'ERROR in handleCustomerStateChanged',data:{error:error instanceof Error?error.message:String(error),stack:error instanceof Error?error.stack:undefined},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+      // #endregion
       logger.error(`Error processing subscription ${subscription.id}:`, error);
     }
   }
