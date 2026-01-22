@@ -612,12 +612,57 @@ export default function QuestionPage() {
                     })}
                   </div>
 
-                  {question.explanation && (
-                    <div className="p-4 bg-muted rounded-lg">
-                      <h4 className="font-semibold mb-2">Explanation:</h4>
-                      <p className="text-sm text-muted-foreground">{question.explanation}</p>
-                    </div>
-                  )}
+                  {question.explanation && (() => {
+                    const sections = parseExplanation(question.explanation)
+
+                    return (
+                      <div className="space-y-4">
+                        {/* Comprehensive Explanation - Always Visible */}
+                        {sections.comprehensiveExplanation && (
+                          <div className="p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900 rounded-lg">
+                            <h4 className="font-bold text-blue-900 dark:text-blue-100 mb-2">
+                              COMPREHENSIVE EXPLANATION
+                            </h4>
+                            <p className="text-sm text-blue-900 dark:text-blue-100 leading-relaxed whitespace-pre-wrap">
+                              {sections.comprehensiveExplanation}
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Real-world Example - Always Visible */}
+                        {sections.realWorldExample && (
+                          <div className="p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900 rounded-lg">
+                            <h4 className="font-bold text-amber-900 dark:text-amber-100 mb-2">
+                              📚 REAL-WORLD EXAMPLE
+                            </h4>
+                            <p className="text-sm text-amber-900 dark:text-amber-100 leading-relaxed whitespace-pre-wrap">
+                              {sections.realWorldExample}
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Why This Matters - Always Visible */}
+                        {sections.whyThisMatters && (
+                          <div className="p-4 bg-purple-50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-900 rounded-lg">
+                            <h4 className="font-bold text-purple-900 dark:text-purple-100 mb-2">
+                              💡 WHY THIS MATTERS
+                            </h4>
+                            <p className="text-sm text-purple-900 dark:text-purple-100 leading-relaxed whitespace-pre-wrap">
+                              {sections.whyThisMatters}
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Fallback for unparsed explanations */}
+                        {!sections.comprehensiveExplanation && (
+                          <div className="p-4 bg-muted rounded-lg">
+                            <h4 className="font-semibold mb-2">Explanation:</h4>
+                            <p className="text-sm text-muted-foreground whitespace-pre-wrap">{question.explanation}</p>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })()}
 
                   <Button onClick={handleNext} className="w-full" disabled={isLoading}>
                     {isLoading ? (
