@@ -23,6 +23,7 @@
     "@radix-ui/react-tabs": "^1.1.13",
     "@sentry/nextjs": "^10.27.0",
     "@types/papaparse": "^5.5.2",
+    "@vercel/analytics": "^1.6.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "js-cookie": "^3.0.5",

@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { Analytics } from "@vercel/analytics/next"
 import { GoogleAnalytics } from "@next/third-parties/google"
 import { initializeAnalytics, hasAnalyticsConsent } from "@/lib/analytics"
 
@@ -39,10 +40,11 @@ export function AnalyticsProvider() {
 
   const gaId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID
 
-  if (!shouldLoadAnalytics || !gaId) {
-    return null
-  }
-
-  return <GoogleAnalytics gaId={gaId} />
+  return (
+    <>
+      <Analytics />
+      {shouldLoadAnalytics && gaId && <GoogleAnalytics gaId={gaId} />}
+    </>
+  )
 }
 
