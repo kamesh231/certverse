@@ -595,16 +595,12 @@ export default function QuestionPage() {
                             >
                               {choice.value}
                             </span>
-                            <span className="flex-1">{choice.text}</span>
+                            <span className="flex-1 text-base">{choice.text}</span>
                             {isCorrectAnswer && (
-                              <span className="text-green-600 dark:text-green-400 font-semibold whitespace-nowrap">
-                                ✓ Correct Answer
-                              </span>
+                              <span className="text-green-600 font-semibold">✓ Correct</span>
                             )}
                             {isUserChoice && !isCorrectAnswer && (
-                              <span className="text-red-600 dark:text-red-400 font-semibold whitespace-nowrap">
-                                Your Choice
-                              </span>
+                              <span className="text-red-600 font-semibold">✗ Incorrect</span>
                             )}
                           </div>
                         </div>
@@ -689,7 +685,7 @@ export default function QuestionPage() {
                         <span className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 text-primary font-semibold flex items-center justify-center">
                           {choice.value}
                         </span>
-                        <span className="flex-1">{choice.text}</span>
+                        <span className="flex-1 text-base">{choice.text}</span>
                       </div>
                     </button>
                   ))}
@@ -732,7 +728,7 @@ export default function QuestionPage() {
                           >
                             {choice.value}
                           </span>
-                          <span className="flex-1">{choice.text}</span>
+                          <span className="flex-1 text-base">{choice.text}</span>
                           {isCorrect && (
                             <span className="text-green-600 font-semibold">✓ Correct</span>
                           )}
