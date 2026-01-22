@@ -705,19 +705,6 @@ export default function QuestionPage() {
 
                   return (
                     <div className="space-y-4">
-                      {/* Correct Answer - Always Visible */}
-                      {sections.correctAnswer && (
-                        <div className="p-4 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-900 rounded-lg">
-                          <div className="flex items-start gap-2 mb-2">
-                            <span className="text-green-600 text-xl">✅</span>
-                            <h4 className="font-bold text-green-900 dark:text-green-100">CORRECT ANSWER</h4>
-                          </div>
-                          <p className="text-sm text-green-900 dark:text-green-100 leading-relaxed whitespace-pre-wrap">
-                            {sections.correctAnswer}
-                          </p>
-                        </div>
-                      )}
-
                       {/* Comprehensive Explanation - Always Visible */}
                       {sections.comprehensiveExplanation && (
                         <div className="p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900 rounded-lg">
@@ -754,32 +741,8 @@ export default function QuestionPage() {
                         </div>
                       )}
 
-                      {/* Incorrect Options - Always Visible */}
-                      {sections.incorrectOptions && sections.incorrectOptions.length > 0 && (
-                        <div className="p-4 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900 rounded-lg">
-                          <div className="flex items-start gap-2 mb-3">
-                            <span className="text-red-600 text-xl">❌</span>
-                            <h4 className="font-bold text-red-900 dark:text-red-100">
-                              INCORRECT OPTIONS - Why They're Wrong
-                            </h4>
-                          </div>
-                          <div className="space-y-3">
-                            {sections.incorrectOptions.map((item, idx) => (
-                              <div key={idx} className="pl-4 border-l-2 border-red-300 dark:border-red-800">
-                                <p className="font-semibold text-red-900 dark:text-red-100 mb-1">
-                                  Option {item.option}:
-                                </p>
-                                <p className="text-sm text-red-900 dark:text-red-100 leading-relaxed">
-                                  {item.explanation}
-                                </p>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
                       {/* Fallback for unparsed explanations */}
-                      {!sections.correctAnswer && !sections.comprehensiveExplanation && (
+                      {!sections.comprehensiveExplanation && (
                         <div className="p-4 bg-muted rounded-lg">
                           <h4 className="font-semibold mb-2">Explanation:</h4>
                           <p className="text-sm text-muted-foreground whitespace-pre-wrap">{result.explanation}</p>
