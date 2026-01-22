@@ -1,0 +1,56 @@
+Implemented Vercel Web Analytics integration for the certverse project.
+
+## Summary
+Successfully added Vercel Web Analytics to the Next.js application, enabling real-time performance monitoring and user analytics on Vercel deployments.
+
+## Changes Made
+
+### Modified Files:
+1. **frontend/components/analytics-provider.tsx**
+   - Added import for `Analytics` component from `@vercel/analytics/next`
+   - Integrated the Vercel Analytics component alongside existing Google Analytics
+   - The component now always renders Vercel Analytics while conditionally rendering Google Analytics based on user consent
+   - This ensures that Vercel Web Analytics tracks all visitors while respecting cookie consent preferences for Google Analytics
+
+### Updated Dependencies:
+1. **frontend/package.json**
+   - Added `@vercel/analytics@^1.6.1` package
+   - Updated `package-lock.json` with the new dependency and its sub-dependencies
+
+## Implementation Details
+
+The implementation follows Next.js best practices for the app directory structure:
+- Used the `@vercel/analytics/next` export which provides a wrapper component optimized for Next.js with automatic route support
+- The Analytics component is placed in the existing `AnalyticsProvider` component, which is already integrated in the root layout
+- The component uses the `"use client"` directive as it's a client-side component
+- Vercel Analytics is always enabled (no consent required as per Vercel's privacy standards)
+- Google Analytics continues to work based on existing cookie consent preferences
+
+## How It Works
+
+Once deployed to Vercel:
+1. The Vercel Analytics component automatically injects the tracking script
+2. Data collection happens at `/_vercel/insights/*` routes
+3. Metrics are available in the Vercel dashboard's Analytics tab
+4. No additional configuration needed beyond package installation
+
+## Testing
+
+✓ Build completed successfully without errors
+✓ Package installed and lockfile updated
+✓ No breaking changes to existing functionality
+✓ Existing analytics providers continue to work as before
+
+## Next Steps
+
+To enable data collection:
+1. Ensure the project is deployed to Vercel
+2. Enable Web Analytics in the Vercel dashboard (Project Settings → Analytics → Enable)
+3. Visit the application to start collecting data
+4. View analytics in the Vercel dashboard's Analytics tab
+
+After a few days of visitor traffic, you'll be able to view:
+- Page views and visitor analytics
+- Core Web Vitals metrics
+- Route-specific performance data
+- Custom events (available on Pro and Enterprise plans)
