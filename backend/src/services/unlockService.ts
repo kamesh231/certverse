@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { getUserSubscription } from './subscriptionService';
+import { getUserPreferences } from './onboardingService';
 import logger from '../lib/logger';
 
 export interface UserStats {
@@ -65,21 +66,108 @@ export async function getUserStatsRecord(userId: string): Promise<UserStats> {
 }
 
 /**
- * Get remaining questions for today
+ * Get start and end of day in UTC for a given timezone
+ * Returns UTC timestamps for midnight start and end of day in user's timezone
+ * 
+ * This function calculates what UTC time range corresponds to "today" 
+ * (midnight to 23:59:59) in the user's local timezone.
  */
+function getDayBoundsInUTC(timezone: string): { start: string; end: string } {
+  try {
+    const now = new Date();
+    
+    // Step 1: Get today's date string in user's timezone (YYYY-MM-DD format)
+    const dateFormatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: timezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    });
+    const todayInTz = dateFormatter.format(now); // Returns YYYY-MM-DD
+    const [year, month, day] = todayInTz.split('-').map(Number);
+    
+    // Validate parsed date components
+    if (!year || !month || !day || isNaN(year) || isNaN(month) || isNaN(day)) {
+      throw new Error(`Invalid date parsed from timezone ${timezone}: ${todayInTz}`);
+    }
+    
+    // Step 2: Calculate timezone offset using a known UTC time (noon)
+    // We use noon UTC as a reference point to calculate the offset
+    const testUTC = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+    const tzFormatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: timezone,
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
+    const tzTimeStr = tzFormatter.format(testUTC); // e.g., "17:30" for IST (UTC+5:30)
+    const timeParts = tzTimeStr.split(':');
+    
+    if (timeParts.length !== 2) {
+      throw new Error(`Invalid time format from timezone ${timezone}: ${tzTimeStr}`);
+    }
+    
+    const [tzHour, tzMinute] = timeParts.map(Number);
+    
+    // Validate parsed time components
+    if (isNaN(tzHour) || isNaN(tzMinute)) {
+      throw new Error(`Invalid time parsed from timezone ${timezone}: ${tzTimeStr}`);
+    }
+    
+    // Calculate offset: UTC 12:00 = tzHour:tzMinute in timezone
+    // Example: UTC 12:00 = 17:30 IST, so offset is +5:30 hours = +330 minutes
+    const offsetMinutes = (tzHour * 60 + tzMinute) - (12 * 60);
+    
+    // Step 3: Convert midnight in timezone to UTC
+    // If timezone is ahead of UTC (positive offset), midnight in timezone is earlier in UTC
+    // Example: IST is +5:30, so midnight IST = 18:30 previous day UTC
+    const startOfDayUTC = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+    startOfDayUTC.setUTCMinutes(startOfDayUTC.getUTCMinutes() - offsetMinutes);
+    
+    // End of day: start of next day in timezone (exclusive, for use with .lt() query)
+    // This ensures we capture all responses up to but not including the next day
+    const nextDayUTC = new Date(Date.UTC(year, month - 1, day + 1, 0, 0, 0, 0));
+    nextDayUTC.setUTCMinutes(nextDayUTC.getUTCMinutes() - offsetMinutes);
+    
+    return {
+      start: startOfDayUTC.toISOString(),
+      end: nextDayUTC.toISOString()
+    };
+  } catch (error) {
+    // Fallback to UTC if timezone calculation fails
+    logger.warn(`Timezone calculation failed for ${timezone}, falling back to UTC:`, error);
+    const todayUTC = new Date().toISOString().split('T')[0];
+    const [y, m, d] = todayUTC.split('-').map(Number);
+    const nextDay = new Date(Date.UTC(y, m - 1, d + 1, 0, 0, 0, 0));
+    return {
+      start: `${todayUTC}T00:00:00Z`,
+      end: nextDay.toISOString()
+    };
+  }
+}
+
 export async function getRemainingQuestions(userId: string): Promise<number> {
   try {
     const dailyLimit = await calculateDailyUnlock(userId);
 
-    // Get today's question count
-    const today = new Date().toISOString().split('T')[0];
+    // Get user's timezone preference
+    let userTimezone = 'America/New_York'; // Default
+    try {
+      const preferences = await getUserPreferences(userId);
+      userTimezone = preferences.timezone || 'America/New_York';
+    } catch (error) {
+      logger.warn(`Could not fetch user preferences for ${userId}, using default timezone`);
+    }
+
+    // Get today's bounds in user's timezone, converted to UTC for database query
+    const { start: todayStart, end: todayEnd } = getDayBoundsInUTC(userTimezone);
 
     const { data: responses, error } = await supabase
       .from('responses')
-      .select('id')
+      .select('id,created_at')
       .eq('user_id', userId)
-      .gte('created_at', `${today}T00:00:00Z`)
-      .lt('created_at', `${today}T23:59:59Z`);
+      .gte('created_at', todayStart)
+      .lt('created_at', todayEnd);
 
     if (error) {
       logger.error('Error getting question count:', error);
