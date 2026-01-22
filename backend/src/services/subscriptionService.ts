@@ -204,10 +204,6 @@ export async function updateSubscriptionStatus(
     currentPeriodEnd?: string;
   }
 ): Promise<void> {
-  // #region agent log
-  fetch('http://127.0.0.1:7243/ingest/6179c10d-52cc-4a13-9d3e-47c4b4a8453a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'subscriptionService.ts:199',message:'updateSubscriptionStatus entry',data:{userId,status,statusType:typeof status,isTrialing:status==='trialing',metadata},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-  // #endregion
-
   const updateData: any = {
     status,
     updated_at: new Date().toISOString(),
@@ -221,18 +217,10 @@ export async function updateSubscriptionStatus(
     updateData.current_period_end = metadata.currentPeriodEnd;
   }
 
-  // #region agent log
-  fetch('http://127.0.0.1:7243/ingest/6179c10d-52cc-4a13-9d3e-47c4b4a8453a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'subscriptionService.ts:219',message:'BEFORE DB update',data:{userId,updateData},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-  // #endregion
-
   const { error } = await supabase
     .from('subscriptions')
     .update(updateData)
     .eq('user_id', userId);
-
-  // #region agent log
-  fetch('http://127.0.0.1:7243/ingest/6179c10d-52cc-4a13-9d3e-47c4b4a8453a',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'subscriptionService.ts:225',message:'AFTER DB update',data:{userId,error:error?JSON.stringify(error):null,success:!error},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-  // #endregion
 
   if (error) {
     logger.error('Error updating subscription status:', error);
